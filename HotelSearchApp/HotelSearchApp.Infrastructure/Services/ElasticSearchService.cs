@@ -23,6 +23,16 @@ namespace HotelSearchApp.Infrastructure.Services
             _elasticClient = elasticClient;
         }
 
+        // Metode untuk mendeteksi apakah query adalah kode hotel
+        private bool IsHotelCodeQuery(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // Hotel code biasanya mengikuti format: 2 huruf diikuti angka (misalnya SG10000142, AL10000267)
+            return System.Text.RegularExpressions.Regex.IsMatch(query, @"^[A-Z]{2}\d+$");
+        }
+
         public async Task<ElasticSearchResponse<Hotel>> SearchHotelsAsync(
             HotelSearchParameters searchParams
         )
@@ -39,8 +49,37 @@ namespace HotelSearchApp.Infrastructure.Services
             var mustClauses = new List<QueryContainer>();
             var shouldClauses = new List<QueryContainer>();
 
-            // Enhanced fuzzy matching for HotelCode
-            if (!string.IsNullOrWhiteSpace(searchParams.HotelCode))
+            // Jika kode hotel diisi dan terlihat seperti kode hotel
+            if (
+                !string.IsNullOrWhiteSpace(searchParams.HotelCode)
+                && IsHotelCodeQuery(searchParams.HotelCode)
+            )
+            {
+                // Gunakan pencarian yang mengutamakan kecocokan persis
+                shouldClauses.Add(
+                    new TermQuery
+                    {
+                        Field = "hotelcode.keyword",
+                        Value = searchParams.HotelCode,
+                        Boost = 1000.0, // Prioritas sangat tinggi
+                    }
+                );
+
+                // Sebagai backup, gunakan fuzzy/prefix tapi dengan boost jauh lebih rendah
+                shouldClauses.Add(
+                    new MatchQuery
+                    {
+                        Field = "hotelcode",
+                        Query = searchParams.HotelCode,
+                        Fuzziness = Fuzziness.Auto,
+                        PrefixLength = 1,
+                        MaxExpansions = 50,
+                        Boost = 5.0,
+                    }
+                );
+            }
+            // Jika tidak terlihat seperti kode hotel, gunakan fuzzy search normal
+            else if (!string.IsNullOrWhiteSpace(searchParams.HotelCode))
             {
                 shouldClauses.Add(
                     new MatchQuery
@@ -183,6 +222,35 @@ namespace HotelSearchApp.Infrastructure.Services
 
             stopwatch.Stop();
 
+            // Untuk pencarian kode hotel, kita perlu filter tambahan untuk kecocokan persis
+            if (
+                !string.IsNullOrWhiteSpace(searchParams.HotelCode)
+                && IsHotelCodeQuery(searchParams.HotelCode)
+            )
+            {
+                // Cari kecocokan persis dari hasil
+                var exactMatch = searchResponse.Documents.FirstOrDefault(h =>
+                    h.HotelCode != null
+                    && h.HotelCode.Equals(
+                        searchParams.HotelCode,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                );
+
+                // Jika ada kecocokan persis, hanya kembalikan hotel tersebut
+                if (exactMatch != null)
+                {
+                    return new ElasticSearchResponse<Hotel>
+                    {
+                        Items = new List<Hotel> { exactMatch },
+                        TotalHits = 1,
+                        ElapsedTime = stopwatch.Elapsed,
+                        PageNumber = searchParams.PageNumber,
+                        PageSize = searchParams.PageSize,
+                    };
+                }
+            }
+
             // Adaptive result handling based on relevance
             if (searchResponse.Hits.Count > 1)
             {
@@ -229,8 +297,59 @@ namespace HotelSearchApp.Infrastructure.Services
             var mustClauses = new List<QueryContainer>();
             var shouldClauses = new List<QueryContainer>();
 
-            // Enhanced hybrid approach for HotelCode
-            if (!string.IsNullOrWhiteSpace(searchParams.HotelCode))
+            // Jika kode hotel diisi dan terlihat seperti kode hotel
+            if (
+                !string.IsNullOrWhiteSpace(searchParams.HotelCode)
+                && IsHotelCodeQuery(searchParams.HotelCode)
+            )
+            {
+                // Gunakan pencarian yang mengutamakan kecocokan persis
+                shouldClauses.Add(
+                    new TermQuery
+                    {
+                        Field = "hotelcode.keyword",
+                        Value = searchParams.HotelCode,
+                        Boost = 1000.0, // Prioritas sangat tinggi
+                    }
+                );
+
+                // Sebagai backup, gunakan n-gram tapi dengan boost jauh lebih rendah
+                var hotelCodeQueries = new List<QueryContainer>
+                {
+                    // N-gram query
+                    new MatchQuery
+                    {
+                        Field = "hotelcode",
+                        Query = searchParams.HotelCode,
+                        MinimumShouldMatch = "60%",
+                        Boost = 2.0,
+                    },
+                    // Edge n-gram for better prefix matching
+                    new MatchQuery
+                    {
+                        Field = "hotelcode.edge",
+                        Query = searchParams.HotelCode,
+                        MinimumShouldMatch = "80%",
+                        Boost = 2.5,
+                    },
+                    // Fuzzy query for typo tolerance
+                    new MatchQuery
+                    {
+                        Field = "hotelcode",
+                        Query = searchParams.HotelCode,
+                        Fuzziness = Fuzziness.Auto,
+                        PrefixLength = 1,
+                        MaxExpansions = 50,
+                        Boost = 2.2,
+                    },
+                };
+
+                shouldClauses.Add(
+                    new BoolQuery { Should = hotelCodeQueries, MinimumShouldMatch = 1 }
+                );
+            }
+            // Jika tidak terlihat seperti kode hotel, gunakan n-gram search normal
+            else if (!string.IsNullOrWhiteSpace(searchParams.HotelCode))
             {
                 var hotelCodeQueries = new List<QueryContainer>
                 {
@@ -451,6 +570,35 @@ namespace HotelSearchApp.Infrastructure.Services
 
             stopwatch.Stop();
 
+            // Untuk pencarian kode hotel, kita perlu filter tambahan untuk kecocokan persis
+            if (
+                !string.IsNullOrWhiteSpace(searchParams.HotelCode)
+                && IsHotelCodeQuery(searchParams.HotelCode)
+            )
+            {
+                // Cari kecocokan persis dari hasil
+                var exactMatch = searchResponse.Documents.FirstOrDefault(h =>
+                    h.HotelCode != null
+                    && h.HotelCode.Equals(
+                        searchParams.HotelCode,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                );
+
+                // Jika ada kecocokan persis, hanya kembalikan hotel tersebut
+                if (exactMatch != null)
+                {
+                    return new ElasticSearchResponse<Hotel>
+                    {
+                        Items = new List<Hotel> { exactMatch },
+                        TotalHits = 1,
+                        ElapsedTime = stopwatch.Elapsed,
+                        PageNumber = searchParams.PageNumber,
+                        PageSize = searchParams.PageSize,
+                    };
+                }
+            }
+
             // Adaptive result handling
             if (searchResponse.Hits.Count > 1)
             {
@@ -501,6 +649,73 @@ namespace HotelSearchApp.Infrastructure.Services
 
             var stopwatch = Stopwatch.StartNew();
 
+            // Cek jika query adalah kode hotel lengkap (dengan awalan huruf)
+            bool isHotelCode = IsHotelCodeQuery(searchQuery);
+
+            // Cek jika query adalah kode numerik saja (tanpa awalan huruf)
+            bool isNumericCode = IsNumericCodeQuery(searchQuery);
+
+            // Prioritaskan pencarian kode hotel lengkap
+            if (isHotelCode)
+            {
+                // [Kode yang sudah ada untuk pencarian kode hotel]
+                var hotelParams = new HotelSearchParameters
+                {
+                    HotelCode = searchQuery,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                };
+
+                // Coba pencarian pada indeks normal dulu
+                var exactResult = await SearchHotelsAsync(hotelParams);
+
+                // Jika ada kecocokan persis, kembalikan
+                if (
+                    exactResult.Items.Any()
+                    && exactResult.Items.Any(h =>
+                        h.HotelCode != null
+                        && h.HotelCode.Equals(searchQuery, StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                {
+                    stopwatch.Stop();
+                    return exactResult;
+                }
+
+                // Jika tidak ada kecocokan di indeks normal, coba di indeks n-gram
+                var ngramResult = await SearchHotelsNGramAsync(hotelParams);
+
+                // Jika ada kecocokan persis di n-gram, kembalikan
+                if (
+                    ngramResult.Items.Any()
+                    && ngramResult.Items.Any(h =>
+                        h.HotelCode != null
+                        && h.HotelCode.Equals(searchQuery, StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                {
+                    stopwatch.Stop();
+                    return ngramResult;
+                }
+            }
+            // Jika query adalah kode numerik, cari hotel dengan bagian numerik yang cocok
+            else if (isNumericCode)
+            {
+                var results = await SearchHotelsByNumericCode(searchQuery, pageSize);
+
+                stopwatch.Stop();
+
+                return new ElasticSearchResponse<Hotel>
+                {
+                    Items = results,
+                    TotalHits = results.Count(),
+                    ElapsedTime = stopwatch.Elapsed,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                };
+            }
+
+            // [Kode yang sudah ada untuk pencarian normal]
             // 1. Normalize the search query
             var normalizedQuery = NormalizeSearchQuery(searchQuery);
 
@@ -719,22 +934,22 @@ namespace HotelSearchApp.Infrastructure.Services
                     {
                         Field = "hotelcode.keyword",
                         Value = code,
-                        Boost = 50.0,
+                        Boost = 1000.0, // Sangat tinggi untuk memastikan ini selalu di atas
                     },
-                    // Fuzzy match for typos
+                    // Sebagai backup jika persis tidak ditemukan, gunakan fuzzy dan prefix
+                    // tapi dengan boost yang jauh lebih rendah
                     new FuzzyQuery
                     {
                         Field = "hotelcode",
                         Value = code,
                         Fuzziness = Fuzziness.Auto,
-                        Boost = 30.0,
+                        Boost = 5.0,
                     },
-                    // Prefix match for partial codes
                     new PrefixQuery
                     {
                         Field = "hotelcode",
                         Value = code,
-                        Boost = 20.0,
+                        Boost = 3.0,
                     },
                 },
                 MinimumShouldMatch = 1,
@@ -937,7 +1152,7 @@ namespace HotelSearchApp.Infrastructure.Services
             switch (intent)
             {
                 case SearchIntent.HotelCode:
-                    return ProcessHotelCodeResults(searchResponse);
+                    return ProcessHotelCodeResults(searchResponse, query);
 
                 case SearchIntent.SpecificHotel:
                     return ProcessSpecificHotelResults(searchResponse, query);
@@ -954,13 +1169,28 @@ namespace HotelSearchApp.Infrastructure.Services
             }
         }
 
-        private IEnumerable<Hotel> ProcessHotelCodeResults(ISearchResponse<Hotel> searchResponse)
+        private IEnumerable<Hotel> ProcessHotelCodeResults(
+            ISearchResponse<Hotel> searchResponse,
+            string code
+        )
         {
-            // For hotel codes, return just the exact match if we have high confidence
+            // Untuk hotel codes, kita hanya ingin kecocokan eksak
             if (searchResponse.Hits.Count > 0)
             {
-                // If we have a single result, or the top result has a significantly higher score
-                if (searchResponse.Hits.Count == 1 || IsHighConfidenceMatch(searchResponse.Hits))
+                // Cari apakah ada hotel yang kodenya persis sama dengan pencarian
+                var exactMatch = searchResponse.Documents.FirstOrDefault(h =>
+                    h.HotelCode != null
+                    && h.HotelCode.Equals(code, StringComparison.OrdinalIgnoreCase)
+                );
+
+                // Jika ada kecocokan eksak, hanya kembalikan hotel tersebut
+                if (exactMatch != null)
+                {
+                    return new List<Hotel> { exactMatch };
+                }
+
+                // Jika kita memiliki hasil dengan skor sangat tinggi, mungkin ini kecocokan yang baik
+                if (IsHighConfidenceMatch(searchResponse.Hits))
                 {
                     return searchResponse.Documents.Take(1);
                 }
@@ -1376,6 +1606,47 @@ namespace HotelSearchApp.Infrastructure.Services
             await CreateHotelNGramIndexAsync();
 
             return true;
+        }
+
+        private bool IsNumericCodeQuery(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // Cek apakah query hanya berisi angka
+            return System.Text.RegularExpressions.Regex.IsMatch(query, @"^\d+$");
+        }
+
+        private async Task<IEnumerable<Hotel>> SearchHotelsByNumericCode(
+            string numericCode,
+            int maxResults = 10
+        )
+        {
+            // Buat query untuk mencari hotel dengan kode yang mengandung bagian numerik yang dicari
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(HotelIndexName) // Cari di indeks utama dulu
+                .Size(maxResults)
+                .Query(q =>
+                    // Cari hotel yang kodenya mengandung angka yang dicari
+                    q.Wildcard(w => w.Field(f => f.HotelCode).Value($"*{numericCode}*"))
+                );
+
+            var searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+
+            if (!searchResponse.IsValid || !searchResponse.Documents.Any())
+            {
+                // Jika tidak ada hasil di indeks utama, coba cari di indeks ngram
+                searchDescriptor = new SearchDescriptor<Hotel>()
+                    .Index(HotelNGramIndexName)
+                    .Size(maxResults)
+                    .Query(q =>
+                        q.Wildcard(w => w.Field(f => f.HotelCode).Value($"*{numericCode}*"))
+                    );
+
+                searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+            }
+
+            return searchResponse.Documents.Take(maxResults);
         }
     }
 }

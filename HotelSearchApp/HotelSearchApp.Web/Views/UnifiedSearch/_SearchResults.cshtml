@@ -1,6 +1,12 @@
 @model HotelSearchApp.Web.Models.UnifiedSearchViewModel
 
-@if (Model.SearchResults != null)
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="search-error alert alert-danger">
+        @Model.ErrorMessage
+    </div>
+}
+else if (Model.SearchResults != null)
 {
     <div class="search-info">
         <strong>Search Method:</strong> @Model.SearchMethod |
@@ -15,26 +21,50 @@
             {
                 <div class="result-item">
                     <div class="result-primary">
-                        @if (!string.IsNullOrEmpty(hotel.CityName))
+                        @if (!string.IsNullOrEmpty(hotel.HotelCode))
                         {
-                            <span class="highlight">@hotel.CityName</span>
+                            <span class="hotel-code">@hotel.HotelCode</span>
                         }
-
+                        
                         @if (!string.IsNullOrEmpty(hotel.HotelName))
                         {
                             <span class="hotel-name">@hotel.HotelName</span>
                         }
+                        
+                        @if (!string.IsNullOrEmpty(hotel.CityName))
+                        {
+                            <span class="highlight">@hotel.CityName</span>
+                        }
                     </div>
                     <div class="result-address">
-                        @hotel.Address1, @hotel.CityName, @hotel.Country
+                        @hotel.Address1
+                        @if (!string.IsNullOrEmpty(hotel.Address2))
+                        {
+                            <span>, @hotel.Address2</span>
+                        }
+                        <span>, @hotel.CityName, @hotel.Country</span>
                     </div>
+                    @if (!string.IsNullOrEmpty(hotel.PhoneNumber))
+                    {
+                        <div class="result-phone">
+                            <small>@hotel.PhoneNumber</small>
+                        </div>
+                    }
                 </div>
             }
         }
         else
         {
-            <div class="result-item">
-                <div class="result-primary">No hotels found</div>
+            <div class="result-item no-results">
+                <div class="result-primary">No hotels found for "<strong>@Model.SearchQuery</strong>"</div>
+                <div class="suggestions">
+                    <p>Try:</p>
+                    <ul>
+                        <li>Checking your spelling</li>
+                        <li>Using more general keywords</li>
+                        <li>Searching by hotel name, city, or hotel code</li>
+                    </ul>
+                </div>
             </div>
         }
     </div>
@@ -65,5 +95,13 @@ else
 {
     <div class="result-item">
         <div class="result-primary">Start typing to search...</div>
+        <div class="search-tips">
+            <p><small>Search tips:</small></p>
+            <ul>
+                <li><small>Search by hotel name, city, or hotel code</small></li>
+                <li><small>Search works even with misspelled words</small></li>
+                <li><small>Use at least 3 characters for better results</small></li>
+            </ul>
+        </div>
     </div>
 }

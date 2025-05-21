@@ -13,3 +13,4 @@ D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debu
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\refint\HotelSearchApp.Infrastructure.dll
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.pdb
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\ref\HotelSearchApp.Infrastructure.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.sourcelink.json

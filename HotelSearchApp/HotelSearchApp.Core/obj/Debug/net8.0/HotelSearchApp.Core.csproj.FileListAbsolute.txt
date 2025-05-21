@@ -10,3 +10,4 @@ D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Core\obj\Debug\net8.0\H
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Core\obj\Debug\net8.0\refint\HotelSearchApp.Core.dll
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Core\obj\Debug\net8.0\HotelSearchApp.Core.pdb
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Core\obj\Debug\net8.0\ref\HotelSearchApp.Core.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Core\obj\Debug\net8.0\HotelSearchApp.Core.sourcelink.json

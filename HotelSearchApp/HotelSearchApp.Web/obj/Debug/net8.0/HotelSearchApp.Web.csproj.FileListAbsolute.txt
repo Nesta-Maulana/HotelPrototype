@@ -37,3 +37,4 @@ D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Web\obj\Debug\net8.0\re
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Web\obj\Debug\net8.0\HotelSearchApp.Web.pdb
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Web\obj\Debug\net8.0\HotelSearchApp.Web.genruntimeconfig.cache
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Web\obj\Debug\net8.0\ref\HotelSearchApp.Web.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Web\obj\Debug\net8.0\HotelSearchApp.Web.sourcelink.json

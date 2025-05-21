@@ -22,5 +22,8 @@ namespace HotelSearchApp.Core.Interfaces
         Task<bool> CreateHotelIndexAsync();
         Task<bool> CreateHotelNGramIndexAsync();
         Task<bool> DeleteHotelIndexAsync();
+
+        // Add the missing method declaration here
+        Task<bool> ClearAllHotelIndices();
     }
 }

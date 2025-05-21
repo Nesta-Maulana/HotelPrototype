@@ -19,13 +19,30 @@ namespace HotelSearchApp.DataImporter
         {
             Console.WriteLine("Hotel Data Importer starting...");
 
-            if (args.Length == 0)
+            string command = "import"; // Default command
+            string excelFilePath = "";
+
+            // Check for command parameter
+            if (args.Length >= 1)
             {
-                Console.WriteLine("Usage: dotnet run <path-to-excel-file>");
+                if (args[0].ToLower() == "reindex" && args.Length >= 2)
+                {
+                    command = "reindex";
+                    excelFilePath = args[1];
+                }
+                else
+                {
+                    excelFilePath = args[0];
+                }
+            }
+            else
+            {
+                Console.WriteLine("Usage: dotnet run [command] <path-to-excel-file>");
+                Console.WriteLine("Commands:");
+                Console.WriteLine("  import (default) - Import data from Excel file");
+                Console.WriteLine("  reindex - Delete existing indices and reimport all data");
                 return;
             }
-
-            var excelFilePath = args[0];
 
             if (!File.Exists(excelFilePath))
             {
@@ -56,19 +73,46 @@ namespace HotelSearchApp.DataImporter
 
             try
             {
-                Console.WriteLine("Creating hotel index...");
-                await elasticSearchService.CreateHotelIndexAsync();
+                // Eksekusi command berdasarkan parameter
+                if (command == "reindex")
+                {
+                    Console.WriteLine("Starting reindex process...");
 
-                Console.WriteLine("Creating n-gram hotel index...");
-                await elasticSearchService.CreateHotelNGramIndexAsync();
+                    // Hapus indeks existing dan buat ulang
+                    Console.WriteLine("Deleting existing indices...");
+                    await elasticSearchService.ClearAllHotelIndices();
 
-                Console.WriteLine("Importing data from Excel...");
-                await ImportDataFromExcel(excelFilePath, elasticSearchService);
+                    Console.WriteLine("Creating standard hotel index with updated analyzers...");
+                    await elasticSearchService.CreateHotelIndexAsync();
 
-                Console.WriteLine("Importing data from Excel to n-gram index...");
-                await ImportDataFromExcelToNGram(excelFilePath, elasticSearchService);
+                    Console.WriteLine("Creating n-gram hotel index with updated analyzers...");
+                    await elasticSearchService.CreateHotelNGramIndexAsync();
 
-                Console.WriteLine("Import completed successfully!");
+                    Console.WriteLine("Importing data from Excel to standard index...");
+                    await ImportDataFromExcel(excelFilePath, elasticSearchService);
+
+                    Console.WriteLine("Importing data from Excel to n-gram index...");
+                    await ImportDataFromExcelToNGram(excelFilePath, elasticSearchService);
+
+                    Console.WriteLine("Reindex completed successfully!");
+                }
+                else
+                {
+                    // Kode import biasa yang sudah ada
+                    Console.WriteLine("Creating hotel index...");
+                    await elasticSearchService.CreateHotelIndexAsync();
+
+                    Console.WriteLine("Creating n-gram hotel index...");
+                    await elasticSearchService.CreateHotelNGramIndexAsync();
+
+                    Console.WriteLine("Importing data from Excel...");
+                    await ImportDataFromExcel(excelFilePath, elasticSearchService);
+
+                    Console.WriteLine("Importing data from Excel to n-gram index...");
+                    await ImportDataFromExcelToNGram(excelFilePath, elasticSearchService);
+
+                    Console.WriteLine("Import completed successfully!");
+                }
             }
             catch (Exception ex)
             {

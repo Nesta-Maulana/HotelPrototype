@@ -554,6 +554,9 @@ namespace HotelSearchApp.Infrastructure.Services
             // Convert to lowercase
             string result = query.ToLowerInvariant();
 
+            // Remove apostrophes
+            result = result.Replace("'", "");
+
             // Remove diacritics (accents) - converts "Mövenpick" to "Movenpick"
             result = new string(
                 result
@@ -1169,9 +1172,21 @@ namespace HotelSearchApp.Infrastructure.Services
                 c =>
                     c.Settings(s =>
                             s.Analysis(a =>
-                                    a.Analyzers(an =>
-                                        an.Standard("standard", sa => sa.StopWords("_english_"))
-                                    )
+                                    a.CharFilters(cf =>
+                                            cf.Mapping(
+                                                "apostrophe_filter",
+                                                m => m.Mappings(new[] { "'=>" })
+                                            )
+                                        )
+                                        .Analyzers(an =>
+                                            an.Custom(
+                                                "standard",
+                                                sa =>
+                                                    sa.Tokenizer("standard")
+                                                        .CharFilters("apostrophe_filter")
+                                                        .Filters("lowercase", "stop")
+                                            )
+                                        )
                                 )
                                 .Setting("index.max_ngram_diff", 4)
                         )
@@ -1218,7 +1233,13 @@ namespace HotelSearchApp.Infrastructure.Services
                 c =>
                     c.Settings(s =>
                             s.Analysis(a =>
-                                    a.TokenFilters(tf =>
+                                    a.CharFilters(cf =>
+                                            cf.Mapping(
+                                                "apostrophe_filter",
+                                                m => m.Mappings(new[] { "'=>" })
+                                            )
+                                        )
+                                        .TokenFilters(tf =>
                                             tf.NGram("ngram_filter", ng => ng.MinGram(1).MaxGram(4))
                                                 .EdgeNGram(
                                                     "edge_ngram_filter",
@@ -1233,6 +1254,7 @@ namespace HotelSearchApp.Infrastructure.Services
                                                     "ngram_analyzer",
                                                     ca =>
                                                         ca.Tokenizer("standard")
+                                                            .CharFilters("apostrophe_filter")
                                                             .Filters(
                                                                 "lowercase",
                                                                 "asciifolding",
@@ -1243,6 +1265,7 @@ namespace HotelSearchApp.Infrastructure.Services
                                                     "edge_ngram_analyzer",
                                                     ca =>
                                                         ca.Tokenizer("standard")
+                                                            .CharFilters("apostrophe_filter")
                                                             .Filters(
                                                                 "lowercase",
                                                                 "asciifolding",
@@ -1253,6 +1276,7 @@ namespace HotelSearchApp.Infrastructure.Services
                                                     "search_analyzer",
                                                     ca =>
                                                         ca.Tokenizer("standard")
+                                                            .CharFilters("apostrophe_filter")
                                                             .Filters("lowercase", "asciifolding")
                                                 )
                                         )

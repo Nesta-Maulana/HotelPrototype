@@ -41,3 +41,4 @@ D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.DataImporter\obj\Debug\
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.DataImporter\obj\Debug\net8.0\HotelSearchApp.DataImporter.pdb
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.DataImporter\obj\Debug\net8.0\HotelSearchApp.DataImporter.genruntimeconfig.cache
 D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.DataImporter\obj\Debug\net8.0\ref\HotelSearchApp.DataImporter.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.DataImporter\obj\Debug\net8.0\HotelSearchApp.DataImporter.sourcelink.json

@@ -699,6 +699,434 @@ namespace HotelSearchApp.Infrastructure.Services
             };
         }
 
+        // Helper method to normalize search query
+        private string NormalizeSearchQuery(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return string.Empty;
+
+            // Convert to lowercase
+            string result = query.ToLowerInvariant();
+
+            // Remove diacritics (accents)
+            result = new string(
+                result
+                    .Normalize(System.Text.NormalizationForm.FormD)
+                    .Where(c =>
+                        System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                        != System.Globalization.UnicodeCategory.NonSpacingMark
+                    )
+                    .ToArray()
+            ).Normalize(System.Text.NormalizationForm.FormC);
+
+            // Replace multiple spaces with a single space
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ");
+
+            // Trim leading and trailing spaces
+            result = result.Trim();
+
+            // Remove common punctuation
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"[^\w\s]", " ");
+
+            // Normalize spaces again
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ").Trim();
+
+            return result;
+        }
+
+        // Helper method to check if query is likely a hotel code
+        private bool IsHotelCode(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // Numeric-only hotel code (seperti 10000121)
+            if (query.All(char.IsDigit) && query.Length >= 7 && query.Length <= 10)
+                return true;
+
+            // Alphanumeric hotel code (seperti AL10000267)
+            if (
+                query.Length >= 8
+                && query.Length <= 12
+                && query.Any(char.IsLetter)
+                && query.Any(char.IsDigit)
+            )
+                return true;
+
+            return false;
+        }
+
+        // Helper method to check if query is likely a city name
+        private bool IsCityName(string query)
+        {
+            // Daftar kota yang dikenal (bisa diperluas)
+            var knownCities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "jakarta",
+                "surabaya",
+                "bandung",
+                "bali",
+                "singapore",
+                "manila",
+                "kuala lumpur",
+                "bangkok",
+                "tokyo",
+                "shanghai",
+                "hong kong",
+                "new york",
+                "london",
+                "paris",
+                "madrid",
+                "rome",
+                "berlin",
+                "sydney",
+                "melbourne",
+                "dubai",
+                "sao paulo",
+                "saint petersburg",
+            };
+
+            var normalizedQuery = NormalizeSearchQuery(query);
+
+            // Cek direct match dengan kota yang dikenal
+            if (
+                knownCities.Any(city =>
+                    city.Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+                return true;
+
+            // Cek partial match dengan kota yang dikenal
+            if (
+                knownCities.Any(city =>
+                    city.Contains(normalizedQuery) || normalizedQuery.Contains(city)
+                )
+            )
+                return true;
+
+            // Mendeteksi suffix umum untuk nama kota
+            if (
+                normalizedQuery.EndsWith(" city")
+                || normalizedQuery.EndsWith(" island")
+                || normalizedQuery.EndsWith(" town")
+                || normalizedQuery.EndsWith(" province")
+            )
+                return true;
+
+            return false;
+        }
+
+        // Helper method to check if query is likely a country name
+        private bool IsCountryName(string query)
+        {
+            // Daftar negara yang dikenal (bisa diperluas)
+            var knownCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "indonesia",
+                "malaysia",
+                "singapore",
+                "philippines",
+                "thailand",
+                "vietnam",
+                "china",
+                "japan",
+                "south korea",
+                "india",
+                "saudi arabia",
+                "united arab emirates",
+                "united states",
+                "united kingdom",
+                "france",
+                "spain",
+                "italy",
+                "germany",
+                "australia",
+                "new zealand",
+                "brazil",
+            };
+
+            var normalizedQuery = NormalizeSearchQuery(query);
+
+            // Cek direct match dengan negara yang dikenal
+            if (
+                knownCountries.Any(country =>
+                    country.Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+                return true;
+
+            // Cek partial match dengan negara yang dikenal
+            if (
+                knownCountries.Any(country =>
+                    country.Contains(normalizedQuery) || normalizedQuery.Contains(country)
+                )
+            )
+                return true;
+
+            return false;
+        }
+
+        // Helper method to detect if query is a known hotel brand
+        private bool IsKnownHotelBrand(string query)
+        {
+            var normalizedQuery = NormalizeSearchQuery(query);
+
+            // Daftar brand hotel terkenal
+            var hotelBrands = new Dictionary<string, List<string>>
+            {
+                {
+                    "marriott",
+                    new List<string> { "jw marriott", "marriott hotel", "marriott resort" }
+                },
+                {
+                    "ritz carlton",
+                    new List<string> { "ritz-carlton", "the ritz carlton" }
+                },
+                {
+                    "hilton",
+                    new List<string> { "hilton hotel", "hilton garden", "hilton resort" }
+                },
+                {
+                    "hyatt",
+                    new List<string> { "grand hyatt", "park hyatt", "hyatt regency" }
+                },
+                {
+                    "sheraton",
+                    new List<string> { "sheraton hotel", "sheraton resort" }
+                },
+                {
+                    "westin",
+                    new List<string> { "the westin", "westin hotel", "westin resort" }
+                },
+                {
+                    "intercontinental",
+                    new List<string> { "intercontinental hotel", "ic hotel" }
+                },
+                {
+                    "movenpick",
+                    new List<string> { "movenpick hotel", "movenpick resort" }
+                },
+                {
+                    "grandhika",
+                    new List<string> { "grandhika iskandarsyah" }
+                },
+            };
+
+            // Cek apakah query mengandung brand hotel
+            foreach (var brand in hotelBrands)
+            {
+                if (normalizedQuery.Contains(brand.Key))
+                    return true;
+
+                if (brand.Value.Any(variation => normalizedQuery.Contains(variation)))
+                    return true;
+            }
+
+            return false;
+        }
+
+        // Helper method to correct common typos
+        private string CorrectCommonTypos(string query)
+        {
+            var normalizedQuery = NormalizeSearchQuery(query);
+
+            // Dictionary mapping typo umum ke koreksinya
+            var commonTypos = new Dictionary<string, string>
+            {
+                { "jakrata", "jakarta" },
+                { "jakata", "jakarta" },
+                { "surrabaya", "surabaya" },
+                { "surabay", "surabaya" },
+                { "bandong", "bandung" },
+                { "singapur", "singapore" },
+                { "singapura", "singapore" },
+                { "manilas", "manila" },
+                { "mariot", "marriott" },
+                { "marriot", "marriott" },
+                { "ritzcarlton", "ritz carlton" },
+                { "ritz-carlton", "ritz carlton" },
+                { "hiltn", "hilton" },
+                { "movenpik", "movenpick" },
+                { "radison", "radisson" },
+            };
+
+            foreach (var typo in commonTypos)
+            {
+                if (normalizedQuery.Contains(typo.Key))
+                {
+                    normalizedQuery = normalizedQuery.Replace(typo.Key, typo.Value);
+                }
+            }
+
+            return normalizedQuery;
+        }
+
+        // Process search results based on criteria
+        private List<Hotel> ProcessSearchResults(
+            List<Hotel> results,
+            string query,
+            bool isHotelCode,
+            bool isCityName,
+            bool isCountryName,
+            bool isKnownHotelBrand
+        )
+        {
+            if (results == null || !results.Any())
+                return new List<Hotel>();
+
+            var normalizedQuery = NormalizeSearchQuery(query);
+            var correctedQuery = CorrectCommonTypos(normalizedQuery);
+
+            // Case 1: Hotel Code (prioritas tertinggi)
+            if (isHotelCode)
+            {
+                var codeMatches = results
+                    .Where(h =>
+                        NormalizeSearchQuery(h.HotelCode).Contains(normalizedQuery)
+                        || normalizedQuery.Contains(NormalizeSearchQuery(h.HotelCode))
+                    )
+                    .Take(10)
+                    .ToList();
+
+                if (codeMatches.Any())
+                    return codeMatches;
+            }
+
+            // Case 2: Exact Hotel Name
+            var exactNameMatches = results
+                .Where(h =>
+                    NormalizeSearchQuery(h.HotelName)
+                        .Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+                    || NormalizeSearchQuery(h.HotelName)
+                        .Equals(correctedQuery, StringComparison.OrdinalIgnoreCase)
+                )
+                .Take(10)
+                .ToList();
+
+            if (exactNameMatches.Any())
+                return exactNameMatches;
+
+            // Case 3: Known Hotel Brand
+            if (isKnownHotelBrand)
+            {
+                var brandMatches = results
+                    .Where(h =>
+                        NormalizeSearchQuery(h.HotelName).Contains(normalizedQuery)
+                        || normalizedQuery.Contains(NormalizeSearchQuery(h.HotelName))
+                    )
+                    .Take(10)
+                    .ToList();
+
+                if (brandMatches.Any())
+                    return brandMatches;
+            }
+
+            // Case 4: City Name
+            if (isCityName)
+            {
+                // Group hasil berdasarkan kota
+                var cityGroups = results
+                    .GroupBy(h => h.CityName)
+                    .Where(g =>
+                        !string.IsNullOrEmpty(g.Key)
+                        && (
+                            NormalizeSearchQuery(g.Key).Contains(normalizedQuery)
+                            || NormalizeSearchQuery(g.Key).Contains(correctedQuery)
+                        )
+                    )
+                    .Take(5) // Max 5 cities
+                    .ToList();
+
+                if (cityGroups.Any())
+                {
+                    // Untuk setiap kota, ambil top hotels secara proporsional
+                    var cityResults = new List<Hotel>();
+                    int hotelsPerCity = Math.Max(1, 10 / cityGroups.Count);
+
+                    foreach (var city in cityGroups)
+                    {
+                        cityResults.AddRange(city.Take(hotelsPerCity));
+                    }
+
+                    // Isi slot yang tersisa jika diperlukan
+                    if (cityResults.Count < 10)
+                    {
+                        foreach (var city in cityGroups)
+                        {
+                            var remaining = 10 - cityResults.Count;
+                            cityResults.AddRange(city.Skip(hotelsPerCity).Take(remaining));
+
+                            if (cityResults.Count >= 10)
+                                break;
+                        }
+                    }
+
+                    return cityResults.Take(10).ToList();
+                }
+            }
+
+            // Case 5: Country Name
+            if (isCountryName)
+            {
+                // Group hasil berdasarkan negara
+                var countryGroups = results
+                    .GroupBy(h => h.Country)
+                    .Where(g =>
+                        !string.IsNullOrEmpty(g.Key)
+                        && (
+                            NormalizeSearchQuery(g.Key).Contains(normalizedQuery)
+                            || NormalizeSearchQuery(g.Key).Contains(correctedQuery)
+                        )
+                    )
+                    .Take(5) // Max 5 countries
+                    .ToList();
+
+                if (countryGroups.Any())
+                {
+                    // Untuk setiap negara, ambil top hotels secara proporsional
+                    var countryResults = new List<Hotel>();
+                    int hotelsPerCountry = Math.Max(1, 10 / countryGroups.Count);
+
+                    foreach (var country in countryGroups)
+                    {
+                        countryResults.AddRange(country.Take(hotelsPerCountry));
+                    }
+
+                    // Isi slot yang tersisa jika diperlukan
+                    if (countryResults.Count < 10)
+                    {
+                        foreach (var country in countryGroups)
+                        {
+                            var remaining = 10 - countryResults.Count;
+                            countryResults.AddRange(country.Skip(hotelsPerCountry).Take(remaining));
+
+                            if (countryResults.Count >= 10)
+                                break;
+                        }
+                    }
+
+                    return countryResults.Take(10).ToList();
+                }
+            }
+
+            // Case 6: Partial Hotel Name (default case)
+            var partialNameMatches = results
+                .Where(h =>
+                    NormalizeSearchQuery(h.HotelName).Contains(normalizedQuery)
+                    || NormalizeSearchQuery(h.HotelName).Contains(correctedQuery)
+                    || normalizedQuery.Contains(NormalizeSearchQuery(h.HotelName))
+                    || correctedQuery.Contains(NormalizeSearchQuery(h.HotelName))
+                )
+                .Take(10)
+                .ToList();
+
+            if (partialNameMatches.Any())
+                return partialNameMatches;
+
+            // Case 7: Default fallback - return top 10 results
+            return results.Take(10).ToList();
+        }
+
         public async Task<ElasticSearchResponse<Hotel>> UnifiedSearchAsync(
             string searchQuery,
             int pageNumber = 1,
@@ -719,132 +1147,308 @@ namespace HotelSearchApp.Infrastructure.Services
 
             var stopwatch = Stopwatch.StartNew();
 
+            // Langkah 1: Normalisasi dan koreksi query
+            var normalizedQuery = NormalizeSearchQuery(searchQuery);
+            var correctedQuery = CorrectCommonTypos(normalizedQuery);
+
+            // Langkah 2: Deteksi tipe pencarian
+            bool isHotelCode = IsHotelCode(normalizedQuery);
+            bool isCityName = IsCityName(normalizedQuery);
+            bool isCountryName = IsCountryName(normalizedQuery);
+            bool isKnownHotelBrand = IsKnownHotelBrand(normalizedQuery);
+
+            // Request lebih banyak hasil untuk memungkinkan filtering
+            var requestPageSize = pageSize * 5;
+
+            // Langkah 3: Buat query pencarian berdasarkan tipe
             var searchDescriptor = new SearchDescriptor<Hotel>()
                 .Index(HotelNGramIndexName)
-                .From((pageNumber - 1) * pageSize)
-                .Size(pageSize)
+                .From(0) // Mulai dari 0 karena kita akan melakukan paginasi kustom
+                .Size(requestPageSize)
                 .RequestCache(false)
                 .TrackScores(true);
 
-            // Enhanced unified search approach
-            searchDescriptor = searchDescriptor.Query(q =>
-                q.Bool(b =>
-                    b.Should(
-                            // Multi-match search across all relevant fields with n-gram
-                            s =>
-                                s.MultiMatch(mm =>
-                                    mm.Query(searchQuery)
-                                        .Fields(f =>
-                                            f.Field(p => p.HotelName, 2.0)
-                                                .Field(p => p.HotelCode, 2.5)
-                                                .Field(p => p.CityName, 2.0)
-                                                .Field(p => p.Country, 1.0)
-                                                .Field(p => p.Address1, 1.0)
-                                        )
-                                        .Type(TextQueryType.BestFields)
-                                        .MinimumShouldMatch("70%") // Increased from 60%
-                                        .Boost(1.5) // Increased from 1.0
-                                ),
-                            // Edge n-gram for better prefix matching
-                            s =>
-                                s.MultiMatch(mm =>
-                                    mm.Query(searchQuery)
-                                        .Fields(f =>
-                                            f.Field("hotelname.edge", 2.0)
-                                                .Field("hotelcode.edge", 2.5)
-                                                .Field("cityname.edge", 2.0)
-                                                .Field("address1.edge", 1.0)
-                                        )
-                                        .Type(TextQueryType.BestFields)
-                                        .MinimumShouldMatch("80%")
-                                        .Boost(1.8)
-                                ),
-                            // Exact keyword matching
-                            s =>
-                                s.MultiMatch(mm =>
-                                    mm.Query(searchQuery)
-                                        .Fields(f =>
-                                            f.Field("hotelname.keyword", 2.5)
-                                                .Field("hotelcode.keyword", 3.0)
-                                                .Field("cityname.keyword", 2.5)
-                                                .Field("country.keyword", 1.5)
-                                        )
-                                        .Type(TextQueryType.BestFields)
-                                        .Boost(2.5)
-                                ),
-                            // Fuzzy search for typo tolerance
-                            s =>
-                                s.MultiMatch(mm =>
-                                    mm.Query(searchQuery)
-                                        .Fields(f =>
-                                            f.Field(p => p.HotelName, 3.0)
-                                                .Field(p => p.HotelCode, 3.5)
-                                                .Field(p => p.CityName, 2.5)
-                                                .Field(p => p.Country, 1.5)
-                                                .Field(p => p.Address1, 1.0)
-                                        )
-                                        .Type(TextQueryType.BestFields)
-                                        .Fuzziness(Fuzziness.Auto)
-                                        .PrefixLength(1)
-                                        .MaxExpansions(50)
-                                        .Boost(2.0) // Increased from 1.5
-                                ),
-                            // Phrase matching for better exact matching
-                            s =>
-                                s.MultiMatch(mm =>
-                                    mm.Query(searchQuery)
-                                        .Fields(f =>
-                                            f.Field(p => p.HotelName, 3.5)
-                                                .Field(p => p.CityName, 3.0)
-                                                .Field(p => p.Address1, 2.0)
-                                        )
-                                        .Type(TextQueryType.PhrasePrefix)
-                                        .Boost(2.5)
-                                )
-                        )
-                        .MinimumShouldMatch(1)
-                )
-            );
+            // Hotel Code search (prioritas tertinggi)
+            if (isHotelCode)
+            {
+                searchDescriptor = searchDescriptor.Query(q =>
+                    q.Bool(b =>
+                        b.Should(
+                                // Exact match pada hotel code
+                                s =>
+                                    s.Term(t =>
+                                        t.Field(f => f.HotelCode).Value(normalizedQuery).Boost(50.0)
+                                    ),
+                                // Fuzzy match pada hotel code
+                                s =>
+                                    s.Fuzzy(f =>
+                                        f.Field(p => p.HotelCode)
+                                            .Value(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                // Prefix match pada hotel code
+                                s =>
+                                    s.Prefix(p =>
+                                        p.Field(f => f.HotelCode).Value(normalizedQuery).Boost(20.0)
+                                    )
+                            )
+                            .MinimumShouldMatch(1)
+                    )
+                );
+            }
+            // Hotel Brand search
+            else if (isKnownHotelBrand)
+            {
+                searchDescriptor = searchDescriptor.Query(q =>
+                    q.Bool(b =>
+                        b.Should(
+                                // Exact match pada hotel name
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("hotelname.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                // Match phrase pada hotel name
+                                s =>
+                                    s.MatchPhrase(mp =>
+                                        mp.Field(f => f.HotelName)
+                                            .Query(normalizedQuery)
+                                            .Boost(40.0)
+                                    ),
+                                // Fuzzy match pada hotel name
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.HotelName)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                // Edge n-gram match untuk prefiks
+                                s =>
+                                    s.Match(m =>
+                                        m.Field("hotelname.edge").Query(normalizedQuery).Boost(20.0)
+                                    )
+                            )
+                            .MinimumShouldMatch(1)
+                    )
+                );
+            }
+            // City search
+            else if (isCityName)
+            {
+                searchDescriptor = searchDescriptor.Query(q =>
+                    q.Bool(b =>
+                        b.Should(
+                                // Exact match pada city name
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("cityname.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("cityname.keyword")
+                                            .Value(correctedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                // Fuzzy match pada city name
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.CityName)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.CityName)
+                                            .Query(correctedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                // Prefix match pada city name
+                                s =>
+                                    s.Prefix(p =>
+                                        p.Field(f => f.CityName).Value(normalizedQuery).Boost(20.0)
+                                    ),
+                                s =>
+                                    s.Prefix(p =>
+                                        p.Field(f => f.CityName).Value(correctedQuery).Boost(20.0)
+                                    )
+                            )
+                            .MinimumShouldMatch(1)
+                    )
+                );
+            }
+            // Country search
+            else if (isCountryName)
+            {
+                searchDescriptor = searchDescriptor.Query(q =>
+                    q.Bool(b =>
+                        b.Should(
+                                // Exact match pada country name
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("country.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("country.keyword").Value(correctedQuery).Boost(50.0)
+                                    ),
+                                // Fuzzy match pada country name
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.Country)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.Country)
+                                            .Query(correctedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    )
+                            )
+                            .MinimumShouldMatch(1)
+                    )
+                );
+            }
+            // General search (default case)
+            else
+            {
+                searchDescriptor = searchDescriptor.Query(q =>
+                    q.Bool(b =>
+                        b.Should(
+                                // Hotel name matches (highest priority)
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("hotelname.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("hotelname.keyword")
+                                            .Value(correctedQuery)
+                                            .Boost(50.0)
+                                    ),
+                                s =>
+                                    s.MatchPhrase(mp =>
+                                        mp.Field(f => f.HotelName)
+                                            .Query(normalizedQuery)
+                                            .Boost(40.0)
+                                    ),
+                                s =>
+                                    s.MatchPhrase(mp =>
+                                        mp.Field(f => f.HotelName).Query(correctedQuery).Boost(40.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.HotelName)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.HotelName)
+                                            .Query(correctedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(30.0)
+                                    ),
+                                // City name matches (medium priority)
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("cityname.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(20.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.CityName)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(15.0)
+                                    ),
+                                // Country name matches (lower priority)
+                                s =>
+                                    s.Term(t =>
+                                        t.Field("country.keyword")
+                                            .Value(normalizedQuery)
+                                            .Boost(10.0)
+                                    ),
+                                s =>
+                                    s.Match(m =>
+                                        m.Field(f => f.Country)
+                                            .Query(normalizedQuery)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(5.0)
+                                    )
+                            )
+                            .MinimumShouldMatch(1)
+                    )
+                );
+            }
 
+            // Langkah 4: Jalankan pencarian
             var searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
 
             stopwatch.Stop();
 
-            // Enhanced adaptive result handling
-            if (searchResponse.Hits.Count > 1)
-            {
-                var topScore = searchResponse.Hits.First().Score ?? 0;
-                var secondScore = searchResponse.Hits.Skip(1).First().Score ?? 0;
+            // Langkah 5: Proses hasil berdasarkan tipe pencarian
+            var processedResults = ProcessSearchResults(
+                searchResponse.Documents.ToList(),
+                searchQuery,
+                isHotelCode,
+                isCityName,
+                isCountryName,
+                isKnownHotelBrand
+            );
 
-                // Dynamic threshold for single result: if score difference is very high
-                // (higher than original 1.5 threshold), return only the top result
-                if (topScore > 0 && secondScore > 0)
-                {
-                    double ratio = topScore / secondScore;
-
-                    // If using a very specific search term that strongly matches one result
-                    if (ratio > 2.0)
-                    {
-                        return new ElasticSearchResponse<Hotel>
-                        {
-                            Items = new List<Hotel> { searchResponse.Documents.First() },
-                            TotalHits = 1,
-                            ElapsedTime = stopwatch.Elapsed,
-                            PageNumber = pageNumber,
-                            PageSize = pageSize,
-                        };
-                    }
-                }
-            }
+            // Langkah 6: Terapkan paginasi
+            int total = processedResults.Count;
+            var paginatedResults = processedResults
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
             return new ElasticSearchResponse<Hotel>
             {
-                Items = searchResponse.Documents,
-                TotalHits = searchResponse.Total,
+                Items = paginatedResults,
+                TotalHits = total,
                 ElapsedTime = stopwatch.Elapsed,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
             };
+        }
+
+        public async Task<bool> ClearAllHotelIndices()
+        {
+            var standardIndexExists = await _elasticClient.Indices.ExistsAsync(HotelIndexName);
+            var ngramIndexExists = await _elasticClient.Indices.ExistsAsync(HotelNGramIndexName);
+
+            var tasks = new List<Task<DeleteIndexResponse>>();
+
+            if (standardIndexExists.Exists)
+                tasks.Add(_elasticClient.Indices.DeleteAsync(HotelIndexName));
+
+            if (ngramIndexExists.Exists)
+                tasks.Add(_elasticClient.Indices.DeleteAsync(HotelNGramIndexName));
+
+            await Task.WhenAll(tasks);
+
+            // Recreate indices with proper mappings
+            await CreateHotelIndexAsync();
+            await CreateHotelNGramIndexAsync();
+
+            return true;
         }
     }
 }

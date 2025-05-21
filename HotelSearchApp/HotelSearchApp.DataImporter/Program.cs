@@ -119,14 +119,19 @@ namespace HotelSearchApp.DataImporter
                 }
 
                 // Get indices for required columns
-                var hotelCodeIndex = headers
+                var countryCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("HotelCode", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("countrycode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var hotelNameIndex = headers
+                var countryNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("HotelName", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("CountryName", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var cityCodeIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("citycode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
                 var cityNameIndex = headers
@@ -134,39 +139,69 @@ namespace HotelSearchApp.DataImporter
                         h.Value.Equals("CityName", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var address1Index = headers
+                var hotelCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Address1", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelcode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var address2Index = headers
+                var hotelNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Address2", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelname", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var stateIndex = headers
+                var hotelChainIdIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("State", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("HotelChainid", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var countryIndex = headers
+                var hotelChainCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Country", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("hotelchaincode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var postalCodeIndex = headers
+                var hotelChainNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("PostalCode", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("hotelchainname", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var phoneNumberIndex = headers
+                var hotelBrandIdIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("PhoneNumber", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotel Brand id", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var lastUpdatedIndex = headers
+                var hotelBrandCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("LastUpdated", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelbrandcode", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var hotelBrandNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("hotelbrandname", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var channelManagerNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("channel manager name", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var areaNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Area name", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var ratingIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Rating", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var contractingManagerIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("ContractingManager", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var priorityIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Priority", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
 
@@ -175,11 +210,11 @@ namespace HotelSearchApp.DataImporter
                     hotelCodeIndex == 0
                     || hotelNameIndex == 0
                     || cityNameIndex == 0
-                    || address1Index == 0
+                    || countryNameIndex == 0
                 )
                 {
                     Console.WriteLine(
-                        "Required columns (HotelCode, HotelName, CityName, Address1) not found!"
+                        "Required columns (Hotelcode, Hotelname, CityName, CountryName) not found!"
                     );
                     return;
                 }
@@ -194,33 +229,28 @@ namespace HotelSearchApp.DataImporter
                         HotelCode = GetCellValue(worksheet, row, hotelCodeIndex),
                         HotelName = GetCellValue(worksheet, row, hotelNameIndex),
                         CityName = GetCellValue(worksheet, row, cityNameIndex),
-                        Address1 = GetCellValue(worksheet, row, address1Index),
-                        Address2 =
-                            address2Index > 0 ? GetCellValue(worksheet, row, address2Index) : null,
-                        State = stateIndex > 0 ? GetCellValue(worksheet, row, stateIndex) : null,
-                        Country =
-                            countryIndex > 0 ? GetCellValue(worksheet, row, countryIndex) : null,
-                        PostalCode =
-                            postalCodeIndex > 0
-                                ? GetCellValue(worksheet, row, postalCodeIndex)
-                                : null,
-                        PhoneNumber =
-                            phoneNumberIndex > 0
-                                ? GetCellValue(worksheet, row, phoneNumberIndex)
-                                : null,
+                        Country = GetCellValue(worksheet, row, countryNameIndex),
+                        // Store area name in Address1 field for searchability
+                        Address1 = GetCellValue(worksheet, row, areaNameIndex),
+                        // We can add some additional data in Address2 for potential future use
+                        Address2 = string.Join(
+                            ", ",
+                            new[]
+                            {
+                                GetCellValue(worksheet, row, hotelChainNameIndex),
+                                GetCellValue(worksheet, row, hotelBrandNameIndex),
+                                GetCellValue(worksheet, row, channelManagerNameIndex),
+                            }.Where(s => !string.IsNullOrEmpty(s))
+                        ),
+                        // State can hold rating
+                        State = GetCellValue(worksheet, row, ratingIndex),
+                        // PostalCode can hold city code
+                        PostalCode = GetCellValue(worksheet, row, cityCodeIndex),
+                        // PhoneNumber can hold contracting manager info
+                        PhoneNumber = GetCellValue(worksheet, row, contractingManagerIndex),
+                        // Set LastUpdated to current time
+                        LastUpdated = DateTime.UtcNow,
                     };
-
-                    if (lastUpdatedIndex > 0)
-                    {
-                        var lastUpdatedValue = worksheet.Cells[row, lastUpdatedIndex].Value;
-                        if (
-                            lastUpdatedValue != null
-                            && DateTime.TryParse(lastUpdatedValue.ToString(), out var date)
-                        )
-                        {
-                            hotel.LastUpdated = date;
-                        }
-                    }
 
                     // Skip rows with no hotel code or hotel name
                     if (
@@ -251,6 +281,7 @@ namespace HotelSearchApp.DataImporter
             }
         }
 
+        // Update the NGram import method similarly
         private static async Task ImportDataFromExcelToNGram(
             string filePath,
             IElasticSearchService elasticSearchService
@@ -292,15 +323,20 @@ namespace HotelSearchApp.DataImporter
                     Console.WriteLine($"Column {header.Key}: {header.Value}");
                 }
 
-                // Get indices for required columns
-                var hotelCodeIndex = headers
+                // Get indices for required columns (same as above)
+                var countryCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("HotelCode", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("countrycode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var hotelNameIndex = headers
+                var countryNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("HotelName", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("CountryName", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var cityCodeIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("citycode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
                 var cityNameIndex = headers
@@ -308,51 +344,82 @@ namespace HotelSearchApp.DataImporter
                         h.Value.Equals("CityName", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var address1Index = headers
+                var hotelCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Address1", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelcode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var address2Index = headers
+                var hotelNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Address2", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelname", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var stateIndex = headers
+                var hotelChainIdIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("State", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("HotelChainid", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var countryIndex = headers
+                var hotelChainCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("Country", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("hotelchaincode", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var postalCodeIndex = headers
+                var hotelChainNameIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("PostalCode", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("hotelchainname", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var phoneNumberIndex = headers
+                var hotelBrandIdIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("PhoneNumber", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotel Brand id", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
-                var lastUpdatedIndex = headers
+                var hotelBrandCodeIndex = headers
                     .FirstOrDefault(h =>
-                        h.Value.Equals("LastUpdated", StringComparison.OrdinalIgnoreCase)
+                        h.Value.Equals("Hotelbrandcode", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var hotelBrandNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("hotelbrandname", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var channelManagerNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("channel manager name", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var areaNameIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Area name", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var ratingIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Rating", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var contractingManagerIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("ContractingManager", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Key;
+                var priorityIndex = headers
+                    .FirstOrDefault(h =>
+                        h.Value.Equals("Priority", StringComparison.OrdinalIgnoreCase)
                     )
                     .Key;
 
+                // Check required column indices
                 if (
                     hotelCodeIndex == 0
                     || hotelNameIndex == 0
                     || cityNameIndex == 0
-                    || address1Index == 0
+                    || countryNameIndex == 0
                 )
                 {
                     Console.WriteLine(
-                        "Required columns (HotelCode, HotelName, CityName, Address1) not found!"
+                        "Required columns (Hotelcode, Hotelname, CityName, CountryName) not found!"
                     );
                     return;
                 }
@@ -367,33 +434,28 @@ namespace HotelSearchApp.DataImporter
                         HotelCode = GetCellValue(worksheet, row, hotelCodeIndex),
                         HotelName = GetCellValue(worksheet, row, hotelNameIndex),
                         CityName = GetCellValue(worksheet, row, cityNameIndex),
-                        Address1 = GetCellValue(worksheet, row, address1Index),
-                        Address2 =
-                            address2Index > 0 ? GetCellValue(worksheet, row, address2Index) : null,
-                        State = stateIndex > 0 ? GetCellValue(worksheet, row, stateIndex) : null,
-                        Country =
-                            countryIndex > 0 ? GetCellValue(worksheet, row, countryIndex) : null,
-                        PostalCode =
-                            postalCodeIndex > 0
-                                ? GetCellValue(worksheet, row, postalCodeIndex)
-                                : null,
-                        PhoneNumber =
-                            phoneNumberIndex > 0
-                                ? GetCellValue(worksheet, row, phoneNumberIndex)
-                                : null,
+                        Country = GetCellValue(worksheet, row, countryNameIndex),
+                        // Store area name in Address1 field for searchability
+                        Address1 = GetCellValue(worksheet, row, areaNameIndex),
+                        // We can add some additional data in Address2 for potential future use
+                        Address2 = string.Join(
+                            ", ",
+                            new[]
+                            {
+                                GetCellValue(worksheet, row, hotelChainNameIndex),
+                                GetCellValue(worksheet, row, hotelBrandNameIndex),
+                                GetCellValue(worksheet, row, channelManagerNameIndex),
+                            }.Where(s => !string.IsNullOrEmpty(s))
+                        ),
+                        // State can hold rating
+                        State = GetCellValue(worksheet, row, ratingIndex),
+                        // PostalCode can hold city code
+                        PostalCode = GetCellValue(worksheet, row, cityCodeIndex),
+                        // PhoneNumber can hold contracting manager info
+                        PhoneNumber = GetCellValue(worksheet, row, contractingManagerIndex),
+                        // Set LastUpdated to current time
+                        LastUpdated = DateTime.UtcNow,
                     };
-
-                    if (lastUpdatedIndex > 0)
-                    {
-                        var lastUpdatedValue = worksheet.Cells[row, lastUpdatedIndex].Value;
-                        if (
-                            lastUpdatedValue != null
-                            && DateTime.TryParse(lastUpdatedValue.ToString(), out var date)
-                        )
-                        {
-                            hotel.LastUpdated = date;
-                        }
-                    }
 
                     // Skip rows with no hotel code or hotel name
                     if (

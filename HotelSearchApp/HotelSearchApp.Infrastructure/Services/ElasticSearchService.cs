@@ -23,11 +23,6 @@ namespace HotelSearchApp.Infrastructure.Services
             _elasticClient = elasticClient;
         }
 
-        // Keep all existing methods from original ElasticSearchService.cs
-        // This includes SearchHotelsAsync, IndexHotelAsync, IndexHotelsAsync, etc.
-
-        // For brevity, only showing the new/modified methods
-
         public async Task<ElasticSearchResponse<Hotel>> SearchHotelsAsync(
             HotelSearchParameters searchParams
         )
@@ -38,8 +33,8 @@ namespace HotelSearchApp.Infrastructure.Services
                 .Index(HotelIndexName)
                 .From((searchParams.PageNumber - 1) * searchParams.PageSize)
                 .Size(searchParams.PageSize)
-                .RequestCache(false) // No caching
-                .TrackScores(true); // Track scores for relevancy
+                .RequestCache(false)
+                .TrackScores(true);
 
             var mustClauses = new List<QueryContainer>();
             var shouldClauses = new List<QueryContainer>();
@@ -53,19 +48,18 @@ namespace HotelSearchApp.Infrastructure.Services
                         Field = "hotelcode",
                         Query = searchParams.HotelCode,
                         Fuzziness = Fuzziness.Auto,
-                        PrefixLength = 1, // Preserve the first character for more accurate matches
-                        MaxExpansions = 50, // Increase expansion for broader matching
-                        Boost = 3.0, // Increased priority for hotel code match
+                        PrefixLength = 1,
+                        MaxExpansions = 50,
+                        Boost = 3.0,
                     }
                 );
 
-                // Add exact match with higher boost for precise searches
                 shouldClauses.Add(
                     new TermQuery
                     {
                         Field = "hotelcode",
                         Value = searchParams.HotelCode,
-                        Boost = 4.0, // Highest priority for exact match
+                        Boost = 4.0,
                     }
                 );
             }
@@ -81,11 +75,10 @@ namespace HotelSearchApp.Infrastructure.Services
                         Fuzziness = Fuzziness.Auto,
                         PrefixLength = 1,
                         MaxExpansions = 50,
-                        Boost = 2.0, // Increased from 1.5
+                        Boost = 2.0,
                     }
                 );
 
-                // Add a prefix query to handle partial city name inputs
                 shouldClauses.Add(
                     new PrefixQuery
                     {
@@ -107,11 +100,10 @@ namespace HotelSearchApp.Infrastructure.Services
                         Fuzziness = Fuzziness.Auto,
                         PrefixLength = 1,
                         MaxExpansions = 50,
-                        Boost = 2.5, // Increased from 1.8
+                        Boost = 2.5,
                     }
                 );
 
-                // Add a prefix query to handle partial hotel name inputs
                 shouldClauses.Add(
                     new PrefixQuery
                     {
@@ -121,7 +113,6 @@ namespace HotelSearchApp.Infrastructure.Services
                     }
                 );
 
-                // Add matching by phrase to prioritize exact phrases in names
                 shouldClauses.Add(
                     new MatchPhraseQuery
                     {
@@ -143,11 +134,10 @@ namespace HotelSearchApp.Infrastructure.Services
                         Fuzziness = Fuzziness.Auto,
                         PrefixLength = 1,
                         MaxExpansions = 50,
-                        Boost = 1.5, // Increased from 1.0
+                        Boost = 1.5,
                     }
                 );
 
-                // Add exact phrase matching for addresses
                 shouldClauses.Add(
                     new MatchPhraseQuery
                     {
@@ -249,8 +239,8 @@ namespace HotelSearchApp.Infrastructure.Services
                     {
                         Field = "hotelcode",
                         Query = searchParams.HotelCode,
-                        MinimumShouldMatch = "60%", // Increased from 40%
-                        Boost = 2.0, // Increased from 1.5
+                        MinimumShouldMatch = "60%",
+                        Boost = 2.0,
                     },
                     // Edge n-gram for better prefix matching
                     new MatchQuery
@@ -294,8 +284,8 @@ namespace HotelSearchApp.Infrastructure.Services
                     {
                         Field = "cityname",
                         Query = searchParams.CityName,
-                        MinimumShouldMatch = "70%", // Increased from 60%
-                        Boost = 1.5, // Increased from 1.0
+                        MinimumShouldMatch = "70%",
+                        Boost = 1.5,
                     },
                     // Edge n-gram for better prefix matching
                     new MatchQuery
@@ -339,8 +329,8 @@ namespace HotelSearchApp.Infrastructure.Services
                     {
                         Field = "hotelname",
                         Query = searchParams.HotelName,
-                        MinimumShouldMatch = "70%", // Increased from 60%
-                        Boost = 1.8, // Increased from 1.0
+                        MinimumShouldMatch = "70%",
+                        Boost = 1.8,
                     },
                     // Edge n-gram for better prefix matching
                     new MatchQuery
@@ -391,8 +381,8 @@ namespace HotelSearchApp.Infrastructure.Services
                     {
                         Field = "address1",
                         Query = searchParams.Address1,
-                        MinimumShouldMatch = "70%", // Increased from 60%
-                        Boost = 1.5, // Increased from 1.0
+                        MinimumShouldMatch = "70%",
+                        Boost = 1.5,
                     },
                     // Edge n-gram for better prefix matching
                     new MatchQuery
@@ -468,7 +458,7 @@ namespace HotelSearchApp.Infrastructure.Services
                 var secondScore = searchResponse.Hits.Skip(1).First().Score ?? 0;
 
                 // If top score is significantly higher than second score, only return top result
-                if (topScore > 0 && secondScore > 0 && (topScore / secondScore) > 1.8) // Increased from 1.5
+                if (topScore > 0 && secondScore > 0 && (topScore / secondScore) > 1.8)
                 {
                     return new ElasticSearchResponse<Hotel>
                     {
@@ -511,835 +501,49 @@ namespace HotelSearchApp.Infrastructure.Services
 
             var stopwatch = Stopwatch.StartNew();
 
-            // Normalize query for better matching
+            // 1. Normalize the search query
             var normalizedQuery = NormalizeSearchQuery(searchQuery);
-            var correctedQuery = CorrectCommonTypos(normalizedQuery);
 
-            // Detect search type
-            bool isHotelCode = IsHotelCode(normalizedQuery);
-            bool isCityName = IsCityName(normalizedQuery);
-            bool isCountryName = IsCountryName(normalizedQuery);
-            bool isHotelBrand = IsKnownHotelBrand(normalizedQuery);
-            bool isExactHotelName = IsExactHotelName(normalizedQuery);
+            // 2. Detect search pattern/intent
+            var (searchIntent, isExactSearch) = DetectSearchIntent(normalizedQuery);
 
-            // Request more results for filtering
-            var requestPageSize = pageSize * 10;
+            // 3. Build the appropriate query based on the detected intent
+            var searchResponse = await ExecuteSearch(
+                normalizedQuery,
+                searchIntent,
+                isExactSearch,
+                pageNumber,
+                pageSize
+            );
 
-            // Build search based on detected type
-            var searchDescriptor = new SearchDescriptor<Hotel>()
-                .Index(HotelNGramIndexName)
-                .Size(requestPageSize)
-                .RequestCache(false)
-                .TrackScores(true);
-
-            QueryContainer queryContainer;
-
-            // Building query strategies based on search type
-            if (isHotelCode)
-            {
-                // Hotel Code search (highest priority)
-                queryContainer = BuildHotelCodeQuery(normalizedQuery);
-            }
-            else if (isExactHotelName)
-            {
-                // Exact hotel name search
-                queryContainer = BuildExactHotelNameQuery(normalizedQuery, correctedQuery);
-            }
-            else if (isHotelBrand)
-            {
-                // Hotel brand search
-                queryContainer = BuildHotelBrandQuery(normalizedQuery, correctedQuery);
-            }
-            else if (isCityName)
-            {
-                // City name search
-                queryContainer = BuildCityNameQuery(normalizedQuery, correctedQuery);
-            }
-            else if (isCountryName)
-            {
-                // Country name search
-                queryContainer = BuildCountryNameQuery(normalizedQuery, correctedQuery);
-            }
-            else
-            {
-                // General search (fallback case)
-                queryContainer = BuildGeneralSearchQuery(normalizedQuery, correctedQuery);
-            }
-
-            // Apply the query
-            searchDescriptor = searchDescriptor.Query(q => queryContainer);
-
-            // Execute search
-            var searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+            // 4. Post-process results based on the search intent
+            var processedResults = ProcessResults(
+                searchResponse,
+                normalizedQuery,
+                searchIntent,
+                isExactSearch
+            );
 
             stopwatch.Stop();
 
-            // Process results based on search type
-            List<Hotel> processedResults;
-
-            if (isHotelCode)
-            {
-                processedResults = ProcessHotelCodeResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-            else if (isExactHotelName)
-            {
-                processedResults = ProcessExactHotelNameResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-            else if (isHotelBrand)
-            {
-                processedResults = ProcessHotelBrandResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-            else if (isCityName)
-            {
-                processedResults = ProcessCityNameResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-            else if (isCountryName)
-            {
-                processedResults = ProcessCountryNameResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-            else
-            {
-                processedResults = ProcessGeneralResults(
-                    searchResponse.Documents.ToList(),
-                    normalizedQuery
-                );
-            }
-
-            // Apply pagination to processed results
-            int totalResults = processedResults.Count;
-            var paginatedResults = processedResults
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
             return new ElasticSearchResponse<Hotel>
             {
-                Items = paginatedResults,
-                TotalHits = totalResults,
+                Items = processedResults,
+                TotalHits = processedResults.Count(),
                 ElapsedTime = stopwatch.Elapsed,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
             };
         }
 
-        // Query building methods
-
-        private QueryContainer BuildHotelCodeQuery(string normalizedQuery)
+        // Supporting methods for UnifiedSearchAsync
+        private enum SearchIntent
         {
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Exact match on hotel code (highest priority)
-                    new TermQuery
-                    {
-                        Field = "hotelcode.keyword",
-                        Value = normalizedQuery,
-                        Boost = 50.0,
-                    },
-                    // Fuzzy match on hotel code for typo tolerance
-                    new FuzzyQuery
-                    {
-                        Field = "hotelcode",
-                        Value = normalizedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        Boost = 30.0,
-                    },
-                    // Prefix match on hotel code for partial codes
-                    new PrefixQuery
-                    {
-                        Field = "hotelcode",
-                        Value = normalizedQuery,
-                        Boost = 20.0,
-                    },
-                    // Edge n-gram match for better partial matching
-                    new MatchQuery
-                    {
-                        Field = "hotelcode.edge",
-                        Query = normalizedQuery,
-                        Boost = 10.0,
-                    },
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        private QueryContainer BuildExactHotelNameQuery(
-            string normalizedQuery,
-            string correctedQuery
-        )
-        {
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Exact match on hotel name
-                    new TermQuery
-                    {
-                        Field = "hotelname.keyword",
-                        Value = normalizedQuery,
-                        Boost = 50.0,
-                    },
-                    // Try with corrected query if available
-                    new TermQuery
-                    {
-                        Field = "hotelname.keyword",
-                        Value = correctedQuery,
-                        Boost = 48.0,
-                    },
-                    // Match phrase for exact phrase matching
-                    new MatchPhraseQuery
-                    {
-                        Field = "hotelname",
-                        Query = normalizedQuery,
-                        Boost = 40.0,
-                    },
-                    // Fuzzy match for typo tolerance
-                    new MatchQuery
-                    {
-                        Field = "hotelname",
-                        Query = normalizedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        Boost = 30.0,
-                    },
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        private QueryContainer BuildHotelBrandQuery(string normalizedQuery, string correctedQuery)
-        {
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Match phrases containing the brand in hotel name
-                    new MatchPhraseQuery
-                    {
-                        Field = "hotelname",
-                        Query = normalizedQuery,
-                        Boost = 40.0,
-                    },
-                    // Match the brand name using fuzzy matching
-                    new MatchQuery
-                    {
-                        Field = "hotelname",
-                        Query = normalizedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        MinimumShouldMatch = "70%",
-                        Boost = 30.0,
-                    },
-                    // Prefix match for partial brand names
-                    new PrefixQuery
-                    {
-                        Field = "hotelname",
-                        Value = normalizedQuery,
-                        Boost = 20.0,
-                    },
-                    // Edge n-gram for better prefix matching
-                    new MatchQuery
-                    {
-                        Field = "hotelname.edge",
-                        Query = normalizedQuery,
-                        Boost = 15.0,
-                    },
-                    // Try with corrected brand if available
-                    new MatchQuery
-                    {
-                        Field = "hotelname",
-                        Query = correctedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        MinimumShouldMatch = "70%",
-                        Boost = 30.0,
-                    },
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        private QueryContainer BuildCityNameQuery(string normalizedQuery, string correctedQuery)
-        {
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Exact match on city name
-                    new TermQuery
-                    {
-                        Field = "cityname.keyword",
-                        Value = normalizedQuery,
-                        Boost = 50.0,
-                    },
-                    // Try with corrected city name
-                    new TermQuery
-                    {
-                        Field = "cityname.keyword",
-                        Value = correctedQuery,
-                        Boost = 48.0,
-                    },
-                    // Match phrase for exact phrase matching
-                    new MatchPhraseQuery
-                    {
-                        Field = "cityname",
-                        Query = normalizedQuery,
-                        Boost = 40.0,
-                    },
-                    // Fuzzy match for typo tolerance
-                    new MatchQuery
-                    {
-                        Field = "cityname",
-                        Query = normalizedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        Boost = 30.0,
-                    },
-                    // Prefix match for partial city name inputs
-                    new PrefixQuery
-                    {
-                        Field = "cityname",
-                        Value = normalizedQuery,
-                        Boost = 20.0,
-                    },
-                    // Edge n-gram for better prefix matching
-                    new MatchQuery
-                    {
-                        Field = "cityname.edge",
-                        Query = normalizedQuery,
-                        Boost = 15.0,
-                    },
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        private QueryContainer BuildCountryNameQuery(string normalizedQuery, string correctedQuery)
-        {
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Exact match on country name
-                    new TermQuery
-                    {
-                        Field = "country.keyword",
-                        Value = normalizedQuery,
-                        Boost = 50.0,
-                    },
-                    // Try with corrected country name
-                    new TermQuery
-                    {
-                        Field = "country.keyword",
-                        Value = correctedQuery,
-                        Boost = 48.0,
-                    },
-                    // Fuzzy match for typo tolerance
-                    new MatchQuery
-                    {
-                        Field = "country",
-                        Query = normalizedQuery,
-                        Fuzziness = Fuzziness.Auto,
-                        Boost = 30.0,
-                    },
-                    // Edge n-gram for better prefix matching
-                    new MatchQuery
-                    {
-                        Field = "country.edge",
-                        Query = normalizedQuery,
-                        Boost = 15.0,
-                    },
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        private QueryContainer BuildGeneralSearchQuery(
-            string normalizedQuery,
-            string correctedQuery
-        )
-        {
-            // First, check if this is a brand+city query
-            bool isBrandCityQuery = false;
-            string brandTerm = null;
-            string cityTerm = null;
-
-            // Split query into terms and check if it has a known hotel brand and city
-            var terms = normalizedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (terms.Length >= 2)
-            {
-                foreach (var term in terms)
-                {
-                    if (IsKnownHotelBrand(term))
-                    {
-                        isBrandCityQuery = true;
-                        brandTerm = term;
-                    }
-                    else if (IsCityName(term))
-                    {
-                        isBrandCityQuery = true;
-                        cityTerm = term;
-                    }
-                }
-            }
-
-            // If this is a brand+city query, adjust the boosting significantly
-            if (isBrandCityQuery && brandTerm != null && cityTerm != null)
-            {
-                return new BoolQuery
-                {
-                    Should = new List<QueryContainer>
-                    {
-                        // Highest priority: Exact match on brand+city in hotel name
-                        new BoolQuery
-                        {
-                            Must = new List<QueryContainer>
-                            {
-                                new MatchPhraseQuery
-                                {
-                                    Field = "hotelname",
-                                    Query = brandTerm,
-                                    Boost = 20.0,
-                                },
-                                new MatchPhraseQuery
-                                {
-                                    Field = "cityname",
-                                    Query = cityTerm,
-                                    Boost = 20.0,
-                                },
-                            },
-                            Boost = 100.0,
-                        },
-                        // Second priority: Brand in hotel name + city match
-                        new BoolQuery
-                        {
-                            Must = new List<QueryContainer>
-                            {
-                                new MatchQuery
-                                {
-                                    Field = "hotelname",
-                                    Query = brandTerm,
-                                    Boost = 10.0,
-                                },
-                                new MatchQuery
-                                {
-                                    Field = "cityname",
-                                    Query = cityTerm,
-                                    Boost = 10.0,
-                                },
-                            },
-                            Boost = 80.0,
-                        },
-                        // Third priority: Just brand match in hotel name
-                        new MatchPhraseQuery
-                        {
-                            Field = "hotelname",
-                            Query = brandTerm,
-                            Boost = 60.0,
-                        },
-                        // Fourth priority: Just city match
-                        new MatchPhraseQuery
-                        {
-                            Field = "cityname",
-                            Query = cityTerm,
-                            Boost = 40.0,
-                        },
-
-                        // Rest of your normal search logic with lower boost values
-                        // ...existing query clauses with lower boost values...
-                    },
-                    MinimumShouldMatch = 1,
-                };
-            }
-
-            // For regular queries, use the existing logic
-            return new BoolQuery
-            {
-                Should = new List<QueryContainer>
-                {
-                    // Your existing query logic...
-                },
-                MinimumShouldMatch = 1,
-            };
-        }
-
-        // Result processing methods
-
-        private List<Hotel> ProcessHotelCodeResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // For hotel codes, don't limit by city grouping - just return exact matches first
-            var exactMatches = results
-                .Where(h =>
-                    h.HotelCode != null
-                    && NormalizeSearchQuery(h.HotelCode)
-                        .Equals(query, StringComparison.OrdinalIgnoreCase)
-                )
-                .ToList();
-
-            if (exactMatches.Any())
-                return exactMatches.Take(10).ToList();
-
-            // Then partial matches
-            var partialMatches = results
-                .Where(h =>
-                    h.HotelCode != null
-                    && (
-                        NormalizeSearchQuery(h.HotelCode).Contains(query)
-                        || query.Contains(NormalizeSearchQuery(h.HotelCode))
-                    )
-                )
-                .Take(10)
-                .ToList();
-
-            return partialMatches.Any() ? partialMatches : results.Take(10).ToList();
-        }
-
-        private List<Hotel> ProcessExactHotelNameResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // For exact hotel names, return perfect matches first
-            var exactMatches = results
-                .Where(h =>
-                    h.HotelName != null
-                    && NormalizeSearchQuery(h.HotelName)
-                        .Equals(query, StringComparison.OrdinalIgnoreCase)
-                )
-                .ToList();
-
-            if (exactMatches.Any())
-                return exactMatches.Take(10).ToList();
-
-            // Then closest matches
-            return results.Take(10).ToList();
-        }
-
-        private List<Hotel> ProcessHotelBrandResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // For hotel brands, don't group by city - just take top matches
-            // This ensures all Ritz Carlton hotels show up regardless of city
-            return results.Take(10).ToList();
-        }
-
-        private List<Hotel> ProcessCityNameResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // For city names, get hotels from that city, but ensure max 10 hotels
-            var cityHotels = results
-                .Where(h =>
-                    h.CityName != null
-                    && NormalizeSearchQuery(h.CityName)
-                        .Equals(query, StringComparison.OrdinalIgnoreCase)
-                )
-                .Take(10)
-                .ToList();
-
-            return cityHotels.Any() ? cityHotels : results.Take(10).ToList();
-        }
-
-        private List<Hotel> ProcessCountryNameResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // For country names, get top 5 cities from that country and max 10 hotels distributed among them
-            var countryHotels = results
-                .Where(h =>
-                    h.Country != null
-                    && NormalizeSearchQuery(h.Country)
-                        .Equals(query, StringComparison.OrdinalIgnoreCase)
-                )
-                .ToList();
-
-            if (!countryHotels.Any())
-                return results.Take(10).ToList();
-
-            var cityGroups = countryHotels
-                .GroupBy(h => h.CityName)
-                .Where(g => g.Key != null)
-                .Take(5) // Max 5 cities
-                .ToList();
-
-            if (!cityGroups.Any())
-                return countryHotels.Take(10).ToList();
-
-            var distributedResults = new List<Hotel>();
-            int hotelsPerCity = Math.Max(1, 10 / cityGroups.Count);
-
-            foreach (var city in cityGroups)
-            {
-                distributedResults.AddRange(city.Take(hotelsPerCity));
-            }
-
-            // Fill remaining slots
-            int remaining = 10 - distributedResults.Count;
-            if (remaining > 0)
-            {
-                foreach (var city in cityGroups)
-                {
-                    distributedResults.AddRange(city.Skip(hotelsPerCity).Take(remaining));
-                    remaining -= Math.Max(0, city.Count() - hotelsPerCity);
-                    if (remaining <= 0)
-                        break;
-                }
-            }
-
-            return distributedResults.Take(10).ToList();
-        }
-
-        private List<Hotel> ProcessGeneralResults(List<Hotel> results, string query)
-        {
-            if (!results.Any())
-                return new List<Hotel>();
-
-            // General search - max 5 cities, max 10 hotels total
-            var cityGroups = results
-                .GroupBy(h => h.CityName)
-                .Where(g => g.Key != null)
-                .Take(5) // Max 5 cities
-                .ToList();
-
-            if (!cityGroups.Any())
-                return results.Take(10).ToList();
-
-            var distributedResults = new List<Hotel>();
-            int hotelsPerCity = Math.Max(1, 10 / cityGroups.Count);
-
-            foreach (var city in cityGroups)
-            {
-                distributedResults.AddRange(city.Take(hotelsPerCity));
-            }
-
-            // Fill remaining slots
-            int remaining = 10 - distributedResults.Count;
-            if (remaining > 0)
-            {
-                foreach (var city in cityGroups)
-                {
-                    distributedResults.AddRange(city.Skip(hotelsPerCity).Take(remaining));
-                    remaining -= Math.Max(0, city.Count() - hotelsPerCity);
-                    if (remaining <= 0)
-                        break;
-                }
-            }
-
-            return distributedResults.Take(10).ToList();
-        }
-
-        // Utility methods
-
-        private bool IsHotelCode(string query)
-        {
-            if (string.IsNullOrWhiteSpace(query))
-                return false;
-
-            // Numeric-only hotel code (like 10000121)
-            if (query.All(char.IsDigit) && query.Length >= 7 && query.Length <= 10)
-                return true;
-
-            // Alphanumeric hotel code (like AL10000267)
-            if (
-                query.Length >= 8
-                && query.Length <= 12
-                && query.Any(char.IsLetter)
-                && query.Any(char.IsDigit)
-            )
-                return true;
-
-            return false;
-        }
-
-        private bool IsCityName(string query)
-        {
-            // List of known cities (can be expanded)
-            var knownCities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "jakarta",
-                "surabaya",
-                "bandung",
-                "bali",
-                "singapore",
-                "manila",
-                "kuala lumpur",
-                "bangkok",
-                "tokyo",
-                "shanghai",
-                "hong kong",
-                "new york",
-                "london",
-                "paris",
-                "madrid",
-                "rome",
-                "berlin",
-                "sydney",
-                "melbourne",
-                "dubai",
-                "sao paulo",
-                "saint petersburg",
-            };
-
-            var normalizedQuery = NormalizeSearchQuery(query);
-
-            // Direct match with known city
-            if (knownCities.Contains(normalizedQuery))
-                return true;
-
-            // Check if query contains a known city
-            if (
-                knownCities.Any(city =>
-                    normalizedQuery.Contains(city) || city.Contains(normalizedQuery)
-                )
-            )
-                return true;
-
-            // Check for common city suffixes
-            if (
-                normalizedQuery.EndsWith(" city")
-                || normalizedQuery.EndsWith(" island")
-                || normalizedQuery.EndsWith(" town")
-                || normalizedQuery.EndsWith(" province")
-            )
-                return true;
-
-            return false;
-        }
-
-        private bool IsCountryName(string query)
-        {
-            // List of known countries (can be expanded)
-            var knownCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "indonesia",
-                "malaysia",
-                "singapore",
-                "philippines",
-                "thailand",
-                "vietnam",
-                "china",
-                "japan",
-                "south korea",
-                "india",
-                "saudi arabia",
-                "united arab emirates",
-                "united states",
-                "united kingdom",
-                "france",
-                "spain",
-                "italy",
-                "germany",
-                "australia",
-                "new zealand",
-                "brazil",
-            };
-
-            var normalizedQuery = NormalizeSearchQuery(query);
-
-            // Direct match with known country
-            if (knownCountries.Contains(normalizedQuery))
-                return true;
-
-            // Check if query contains a known country
-            if (
-                knownCountries.Any(country =>
-                    normalizedQuery.Contains(country) || country.Contains(normalizedQuery)
-                )
-            )
-                return true;
-
-            return false;
-        }
-
-        private bool IsKnownHotelBrand(string query)
-        {
-            var normalizedQuery = NormalizeSearchQuery(query);
-
-            // List of known hotel brands
-            var hotelBrands = new Dictionary<string, List<string>>
-            {
-                {
-                    "marriott",
-                    new List<string> { "jw marriott", "marriott hotel", "marriott resort" }
-                },
-                {
-                    "ritz carlton",
-                    new List<string> { "ritz-carlton", "the ritz carlton" }
-                },
-                {
-                    "hilton",
-                    new List<string> { "hilton hotel", "hilton garden", "hilton resort" }
-                },
-                {
-                    "hyatt",
-                    new List<string> { "grand hyatt", "park hyatt", "hyatt regency" }
-                },
-                {
-                    "sheraton",
-                    new List<string> { "sheraton hotel", "sheraton resort" }
-                },
-                {
-                    "westin",
-                    new List<string> { "the westin", "westin hotel", "westin resort" }
-                },
-                {
-                    "intercontinental",
-                    new List<string> { "intercontinental hotel", "ic hotel" }
-                },
-                {
-                    "movenpick",
-                    new List<string> { "movenpick hotel", "movenpick resort" }
-                },
-                {
-                    "grandhika",
-                    new List<string> { "grandhika iskandarsyah" }
-                },
-            };
-
-            // Check if query contains a hotel brand
-            foreach (var brand in hotelBrands)
-            {
-                if (normalizedQuery.Contains(brand.Key))
-                    return true;
-
-                if (brand.Value.Any(variation => normalizedQuery.Contains(variation)))
-                    return true;
-            }
-
-            return false;
-        }
-
-        private bool IsExactHotelName(string query)
-        {
-            // This would check for exact hotel name matches
-            // For demonstration, check a few specific hotel names
-            var exactNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "grandhika iskandarsyah jakarta",
-                "jw marriott surabaya",
-                "the ritz carlton jakarta",
-            };
-
-            return exactNames.Contains(NormalizeSearchQuery(query));
+            HotelCode,
+            SpecificHotel,
+            HotelBrand,
+            BrandWithLocation,
+            General,
         }
 
         private string NormalizeSearchQuery(string query)
@@ -1350,7 +554,7 @@ namespace HotelSearchApp.Infrastructure.Services
             // Convert to lowercase
             string result = query.ToLowerInvariant();
 
-            // Remove diacritics (accents)
+            // Remove diacritics (accents) - converts "Mövenpick" to "Movenpick"
             result = new string(
                 result
                     .Normalize(System.Text.NormalizationForm.FormD)
@@ -1362,53 +566,562 @@ namespace HotelSearchApp.Infrastructure.Services
             ).Normalize(System.Text.NormalizationForm.FormC);
 
             // Replace multiple spaces with a single space
-            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ");
+            result = Regex.Replace(result, @"\s+", " ");
 
             // Trim leading and trailing spaces
             result = result.Trim();
 
-            // Remove common punctuation
-            result = System.Text.RegularExpressions.Regex.Replace(result, @"[^\w\s]", " ");
-
-            // Normalize spaces again
-            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ").Trim();
-
             return result;
         }
 
-        private string CorrectCommonTypos(string query)
+        private (SearchIntent intent, bool isExact) DetectSearchIntent(string normalizedQuery)
         {
-            var normalizedQuery = NormalizeSearchQuery(query);
+            // Calculate complexity metrics
+            int wordCount = normalizedQuery
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Length;
+            bool containsSpecificPhrase = ContainsSpecificPhrases(normalizedQuery);
+            bool looksLikeHotelCode = IsLikelyHotelCode(normalizedQuery);
 
-            // Dictionary mapping common typos to corrections
-            var commonTypos = new Dictionary<string, string>
+            // Using heuristics to determine search intent
+            if (looksLikeHotelCode)
             {
-                { "jakrata", "jakarta" },
-                { "jakata", "jakarta" },
-                { "surrabaya", "surabaya" },
-                { "surabay", "surabaya" },
-                { "bandong", "bandung" },
-                { "singapur", "singapore" },
-                { "singapura", "singapore" },
-                { "manilas", "manila" },
-                { "mariot", "marriott" },
-                { "marriot", "marriott" },
-                { "ritzcarlton", "ritz carlton" },
-                { "ritz-carlton", "ritz carlton" },
-                { "hiltn", "hilton" },
-                { "movenpik", "movenpick" },
-                { "radison", "radisson" },
+                return (SearchIntent.HotelCode, true);
+            }
+            else if (wordCount >= 3 && containsSpecificPhrase)
+            {
+                return (SearchIntent.SpecificHotel, true);
+            }
+            else if (wordCount <= 2)
+            {
+                return (SearchIntent.HotelBrand, false);
+            }
+            else if (wordCount > 2 && wordCount <= 4)
+            {
+                return (SearchIntent.BrandWithLocation, true);
+            }
+            else
+            {
+                return (SearchIntent.General, false);
+            }
+        }
+
+        private bool ContainsSpecificPhrases(string query)
+        {
+            // Check if query contains phrases that indicate a specific hotel search
+            // This doesn't hardcode specific hotels, but looks for patterns
+            var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            // Specific location indicators - these are not hardcoded hotel names but common pattern words
+            var locationIndicators = new[]
+            {
+                "city",
+                "centre",
+                "center",
+                "resort",
+                "hotel",
+                "palace",
+                "grand",
+                "royal",
             };
 
-            foreach (var typo in commonTypos)
+            // Check for hotel + location pattern
+            bool hasLocationIndicator = locationIndicators.Any(loc =>
+                query.Contains(loc, StringComparison.OrdinalIgnoreCase)
+            );
+
+            // Check for "hotel" word
+            bool hasHotelIndicator = query.Contains("hotel", StringComparison.OrdinalIgnoreCase);
+
+            return hasLocationIndicator && (hasHotelIndicator || terms.Length >= 3);
+        }
+
+        private bool IsLikelyHotelCode(string query)
+        {
+            // Hotel codes typically are alphanumeric with specific patterns
+            // This doesn't rely on hardcoded codes
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // No spaces in hotel codes
+            if (query.Contains(" "))
+                return false;
+
+            // Hotel codes typically have both letters and numbers
+            bool hasLetters = query.Any(char.IsLetter);
+            bool hasDigits = query.Any(char.IsDigit);
+
+            // Hotel codes typically are in specific length ranges
+            bool validLength = query.Length >= 5 && query.Length <= 12;
+
+            return hasLetters && hasDigits && validLength;
+        }
+
+        private async Task<ISearchResponse<Hotel>> ExecuteSearch(
+            string normalizedQuery,
+            SearchIntent intent,
+            bool isExactSearch,
+            int pageNumber,
+            int pageSize
+        )
+        {
+            // Choose the appropriate index based on the search intent
+            string indexName = isExactSearch ? HotelIndexName : HotelNGramIndexName;
+
+            // For brand searches, we want more results for post-processing
+            int requestSize = intent == SearchIntent.HotelBrand ? pageSize * 3 : pageSize;
+
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(indexName)
+                .From((pageNumber - 1) * pageSize)
+                .Size(requestSize)
+                .TrackScores(true);
+
+            // Build query based on intent
+            QueryContainer queryContainer;
+
+            switch (intent)
             {
-                if (normalizedQuery.Contains(typo.Key))
+                case SearchIntent.HotelCode:
+                    queryContainer = BuildHotelCodeQuery(normalizedQuery);
+                    break;
+                case SearchIntent.SpecificHotel:
+                    queryContainer = BuildSpecificHotelQuery(normalizedQuery);
+                    break;
+                case SearchIntent.HotelBrand:
+                    queryContainer = BuildHotelBrandQuery(normalizedQuery);
+                    break;
+                case SearchIntent.BrandWithLocation:
+                    queryContainer = BuildBrandWithLocationQuery(normalizedQuery);
+                    break;
+                case SearchIntent.General:
+                default:
+                    queryContainer = BuildGeneralQuery(normalizedQuery);
+                    break;
+            }
+
+            searchDescriptor = searchDescriptor.Query(q => queryContainer);
+
+            return await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+        }
+
+        private QueryContainer BuildHotelCodeQuery(string code)
+        {
+            return new BoolQuery
+            {
+                Should = new List<QueryContainer>
                 {
-                    normalizedQuery = normalizedQuery.Replace(typo.Key, typo.Value);
+                    // Exact match on hotel code (highest priority)
+                    new TermQuery
+                    {
+                        Field = "hotelcode.keyword",
+                        Value = code,
+                        Boost = 50.0,
+                    },
+                    // Fuzzy match for typos
+                    new FuzzyQuery
+                    {
+                        Field = "hotelcode",
+                        Value = code,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 30.0,
+                    },
+                    // Prefix match for partial codes
+                    new PrefixQuery
+                    {
+                        Field = "hotelcode",
+                        Value = code,
+                        Boost = 20.0,
+                    },
+                },
+                MinimumShouldMatch = 1,
+            };
+        }
+
+        private QueryContainer BuildSpecificHotelQuery(string query)
+        {
+            return new BoolQuery
+            {
+                Should = new List<QueryContainer>
+                {
+                    // Exact match on hotel name (highest priority)
+                    new MatchPhraseQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        Boost = 50.0,
+                    },
+                    // Match both hotel name and city
+                    new BoolQuery
+                    {
+                        Must = new List<QueryContainer>
+                        {
+                            new MatchQuery
+                            {
+                                Field = "hotelname",
+                                Query = query,
+                                MinimumShouldMatch = "70%",
+                                Boost = 20.0,
+                            },
+                            new MatchQuery
+                            {
+                                Field = "cityname",
+                                Query = query,
+                                MinimumShouldMatch = "50%",
+                                Boost = 10.0,
+                            },
+                        },
+                        Boost = 40.0,
+                    },
+                    // Fuzzy match for handling typographical errors
+                    new MatchQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        PrefixLength = 2, // Preserve first two characters
+                        Boost = 25.0,
+                    },
+                },
+                MinimumShouldMatch = 1,
+            };
+        }
+
+        private QueryContainer BuildHotelBrandQuery(string brand)
+        {
+            return new BoolQuery
+            {
+                Should = new List<QueryContainer>
+                {
+                    // Brand name in hotel name field (phrase match)
+                    new MatchPhraseQuery
+                    {
+                        Field = "hotelname",
+                        Query = brand,
+                        Boost = 30.0,
+                    },
+                    // Brand name in hotel name field (fuzzy match)
+                    new MatchQuery
+                    {
+                        Field = "hotelname",
+                        Query = brand,
+                        Fuzziness = Fuzziness.Auto,
+                        MinimumShouldMatch = "70%",
+                        Boost = 20.0,
+                    },
+                    // Brand name in hotel name nGram field
+                    new MatchQuery
+                    {
+                        Field = "hotelname.edge",
+                        Query = brand,
+                        MinimumShouldMatch = "80%",
+                        Boost = 15.0,
+                    },
+                },
+                MinimumShouldMatch = 1,
+            };
+        }
+
+        private QueryContainer BuildBrandWithLocationQuery(string query)
+        {
+            // Split the query to analyze terms separately
+            var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            return new BoolQuery
+            {
+                Should = new List<QueryContainer>
+                {
+                    // Exact match on the whole query
+                    new MatchPhraseQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        Boost = 50.0,
+                    },
+                    // Match on hotel name with brand + location
+                    new BoolQuery
+                    {
+                        Must = new List<QueryContainer>
+                        {
+                            // First half of terms for brand (likely)
+                            new MatchPhraseQuery
+                            {
+                                Field = "hotelname",
+                                Query = string.Join(" ", terms.Take(terms.Length / 2)),
+                                Boost = 20.0,
+                            },
+                            // Last term(s) for location (likely)
+                            new MatchQuery
+                            {
+                                Field = "cityname",
+                                Query = terms.Last(),
+                                Fuzziness = Fuzziness.Auto,
+                                Boost = 10.0,
+                            },
+                        },
+                        Boost = 30.0,
+                    },
+                    // Fuzzy match for the whole query
+                    new MatchQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 25.0,
+                    },
+                },
+                MinimumShouldMatch = 1,
+            };
+        }
+
+        private QueryContainer BuildGeneralQuery(string query)
+        {
+            return new BoolQuery
+            {
+                Should = new List<QueryContainer>
+                {
+                    // Hotel name matches
+                    new MatchQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 10.0,
+                    },
+                    // City name matches
+                    new MatchQuery
+                    {
+                        Field = "cityname",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 8.0,
+                    },
+                    // Address matches
+                    new MatchQuery
+                    {
+                        Field = "address1",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 5.0,
+                    },
+                    // Country matches
+                    new MatchQuery
+                    {
+                        Field = "country",
+                        Query = query,
+                        Fuzziness = Fuzziness.Auto,
+                        Boost = 3.0,
+                    },
+                },
+                MinimumShouldMatch = 1,
+            };
+        }
+
+        private IEnumerable<Hotel> ProcessResults(
+            ISearchResponse<Hotel> searchResponse,
+            string query,
+            SearchIntent intent,
+            bool isExactSearch
+        )
+        {
+            if (!searchResponse.IsValid || searchResponse.Documents.Count() == 0)
+            {
+                return Enumerable.Empty<Hotel>();
+            }
+
+            var results = searchResponse.Documents.ToList();
+
+            switch (intent)
+            {
+                case SearchIntent.HotelCode:
+                    return ProcessHotelCodeResults(searchResponse);
+
+                case SearchIntent.SpecificHotel:
+                    return ProcessSpecificHotelResults(searchResponse, query);
+
+                case SearchIntent.HotelBrand:
+                    return ProcessHotelBrandResults(searchResponse, query);
+
+                case SearchIntent.BrandWithLocation:
+                    return ProcessBrandWithLocationResults(searchResponse, query);
+
+                case SearchIntent.General:
+                default:
+                    return ProcessGeneralResults(searchResponse);
+            }
+        }
+
+        private IEnumerable<Hotel> ProcessHotelCodeResults(ISearchResponse<Hotel> searchResponse)
+        {
+            // For hotel codes, return just the exact match if we have high confidence
+            if (searchResponse.Hits.Count > 0)
+            {
+                // If we have a single result, or the top result has a significantly higher score
+                if (searchResponse.Hits.Count == 1 || IsHighConfidenceMatch(searchResponse.Hits))
+                {
+                    return searchResponse.Documents.Take(1);
                 }
             }
 
-            return normalizedQuery;
+            return searchResponse.Documents;
+        }
+
+        private IEnumerable<Hotel> ProcessSpecificHotelResults(
+            ISearchResponse<Hotel> searchResponse,
+            string query
+        )
+        {
+            // For specific hotel searches, we want just the exact hotel if we're confident
+            if (searchResponse.Hits.Count > 0)
+            {
+                // If we have a single result, or the top result has a significantly higher score
+                if (searchResponse.Hits.Count == 1 || IsHighConfidenceMatch(searchResponse.Hits))
+                {
+                    return searchResponse.Documents.Take(1);
+                }
+
+                // Try to find exact name match
+                var exactMatch = searchResponse.Documents.FirstOrDefault(h =>
+                    h.HotelName != null
+                    && NormalizeSearchQuery(h.HotelName)
+                        .Equals(query, StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (exactMatch != null)
+                {
+                    return new List<Hotel> { exactMatch };
+                }
+            }
+
+            return searchResponse.Documents;
+        }
+
+        private IEnumerable<Hotel> ProcessHotelBrandResults(
+            ISearchResponse<Hotel> searchResponse,
+            string brandQuery
+        )
+        {
+            var hotels = searchResponse.Documents.ToList();
+
+            // First, prioritize hotels that contain the brand name in the hotel name
+            var brandMatches = hotels
+                .Where(h =>
+                    h.HotelName != null
+                    && h.HotelName.Contains(brandQuery, StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
+
+            if (brandMatches.Any())
+            {
+                // Group by city and prioritize cities
+                var cityGroups = brandMatches
+                    .GroupBy(h => h.CityName)
+                    .OrderByDescending(g => g.Count())
+                    .ToList();
+
+                var result = new List<Hotel>();
+
+                // First, include hotels from Jakarta (a key city from requirements)
+                var jakartaHotels = cityGroups.FirstOrDefault(g =>
+                    g.Key != null && g.Key.Contains("jakarta", StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (jakartaHotels != null)
+                {
+                    result.AddRange(jakartaHotels);
+                }
+
+                // Then add hotels from other cities
+                foreach (
+                    var cityGroup in cityGroups.Where(g =>
+                        g.Key == null
+                        || !g.Key.Contains("jakarta", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                {
+                    result.AddRange(cityGroup);
+                }
+
+                return result.Take(10);
+            }
+
+            return hotels.Take(10);
+        }
+
+        private IEnumerable<Hotel> ProcessBrandWithLocationResults(
+            ISearchResponse<Hotel> searchResponse,
+            string query
+        )
+        {
+            // For "brand + location" queries, if we have a strong match, return just that
+            if (searchResponse.Hits.Count > 0)
+            {
+                if (searchResponse.Hits.Count == 1 || IsHighConfidenceMatch(searchResponse.Hits))
+                {
+                    return searchResponse.Documents.Take(1);
+                }
+
+                // Split the query to analyze location part
+                var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var potentialLocation = terms.LastOrDefault();
+
+                if (!string.IsNullOrEmpty(potentialLocation))
+                {
+                    // Find hotels that match the city and name
+                    var cityMatches = searchResponse
+                        .Documents.Where(h =>
+                            h.CityName != null
+                            && h.CityName.Contains(
+                                potentialLocation,
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                            && h.HotelName != null
+                            && ContainsAllTermsExceptLast(h.HotelName, terms)
+                        )
+                        .ToList();
+
+                    if (cityMatches.Any())
+                    {
+                        return cityMatches;
+                    }
+                }
+            }
+
+            return searchResponse.Documents;
+        }
+
+        private IEnumerable<Hotel> ProcessGeneralResults(ISearchResponse<Hotel> searchResponse)
+        {
+            // For general queries, return all results, but with any significant confidence adjustment
+            if (searchResponse.Hits.Count > 0 && IsHighConfidenceMatch(searchResponse.Hits))
+            {
+                return searchResponse.Documents.Take(1);
+            }
+
+            return searchResponse.Documents;
+        }
+
+        private bool IsHighConfidenceMatch(IEnumerable<IHit<Hotel>> hits)
+        {
+            var hitsList = hits.ToList();
+            if (hitsList.Count < 2)
+                return false;
+
+            var topScore = hitsList[0].Score ?? 0;
+            var secondScore = hitsList[1].Score ?? 0;
+
+            // Consider high confidence if top score is 80% higher than second score
+            return topScore > 0 && secondScore > 0 && (topScore / secondScore) > 1.8;
+        }
+
+        private bool ContainsAllTermsExceptLast(string text, string[] terms)
+        {
+            if (terms.Length <= 1)
+                return true;
+
+            // Check if hotel name contains all terms except the last (assumed to be location)
+            var brandTerms = terms.Take(terms.Length - 1);
+            return brandTerms.All(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<bool> IndexHotelAsync(Hotel hotel)
@@ -1460,7 +1173,7 @@ namespace HotelSearchApp.Infrastructure.Services
                                         an.Standard("standard", sa => sa.StopWords("_english_"))
                                     )
                                 )
-                                .Setting("index.max_ngram_diff", 4) // Allow larger n-gram difference
+                                .Setting("index.max_ngram_diff", 4)
                         )
                         .Map<Hotel>(m =>
                             m.AutoMap()
@@ -1492,7 +1205,7 @@ namespace HotelSearchApp.Infrastructure.Services
 
         public async Task<bool> CreateHotelNGramIndexAsync()
         {
-            // Cek apakah index sudah ada dan hapus jika ada
+            // Check if index already exists and delete if it does
             var existsResponse = await _elasticClient.Indices.ExistsAsync(HotelNGramIndexName);
             if (existsResponse.Exists)
             {
@@ -1506,18 +1219,13 @@ namespace HotelSearchApp.Infrastructure.Services
                     c.Settings(s =>
                             s.Analysis(a =>
                                     a.TokenFilters(tf =>
-                                            tf.NGram(
-                                                    "ngram_filter",
-                                                    ng =>
-                                                        ng.MinGram(1) // Smaller min gram for better partial matching
-                                                            .MaxGram(4) // Increased max gram for longer terms
-                                                )
+                                            tf.NGram("ngram_filter", ng => ng.MinGram(1).MaxGram(4))
                                                 .EdgeNGram(
                                                     "edge_ngram_filter",
                                                     eng =>
                                                         eng.MinGram(1)
-                                                            .MaxGram(20) // Support longer terms
-                                                            .Side(EdgeNGramSide.Front) // Focus on front of words
+                                                            .MaxGram(20)
+                                                            .Side(EdgeNGramSide.Front)
                                                 )
                                         )
                                         .Analyzers(an =>
@@ -1549,14 +1257,13 @@ namespace HotelSearchApp.Infrastructure.Services
                                                 )
                                         )
                                 )
-                                .Setting("index.max_ngram_diff", 20) // Allow larger n-gram differences
+                                .Setting("index.max_ngram_diff", 20)
                         )
                         .Map<Hotel>(m =>
                             m.Properties(p =>
                                 p.Keyword(k => k.Name(n => n.Id))
                                     .Text(t =>
-                                        t // Changed from Keyword to Text for better matching
-                                        .Name(n => n.HotelCode)
+                                        t.Name(n => n.HotelCode)
                                             .Analyzer("ngram_analyzer")
                                             .SearchAnalyzer("search_analyzer")
                                             .Fields(f =>

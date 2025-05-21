@@ -1,0 +1,5 @@
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net9.0\HotelSearchApp.Infrastructure.csproj.AssemblyReference.cache
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net9.0\HotelSearchApp.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net9.0\HotelSearchApp.Infrastructure.AssemblyInfoInputs.cache
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net9.0\HotelSearchApp.Infrastructure.AssemblyInfo.cs
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net9.0\HotelSearchApp.Infrastructure.csproj.CoreCompileInputs.cache

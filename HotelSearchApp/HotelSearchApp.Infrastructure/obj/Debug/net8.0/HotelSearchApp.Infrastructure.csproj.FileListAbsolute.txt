@@ -1,0 +1,15 @@
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\bin\Debug\net8.0\HotelSearchApp.Infrastructure.deps.json
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\bin\Debug\net8.0\HotelSearchApp.Infrastructure.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\bin\Debug\net8.0\HotelSearchApp.Infrastructure.pdb
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\bin\Debug\net8.0\HotelSearchApp.Core.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\bin\Debug\net8.0\HotelSearchApp.Core.pdb
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.csproj.AssemblyReference.cache
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.AssemblyInfoInputs.cache
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.AssemblyInfo.cs
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.csproj.CoreCompileInputs.cache
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSea.8F998281.Up2Date
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\refint\HotelSearchApp.Infrastructure.dll
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\HotelSearchApp.Infrastructure.pdb
+D:\00. Works\elasticsearch\HotelSearchApp\HotelSearchApp.Infrastructure\obj\Debug\net8.0\ref\HotelSearchApp.Infrastructure.dll

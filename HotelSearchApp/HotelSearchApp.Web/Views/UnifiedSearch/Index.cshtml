@@ -1,0 +1,346 @@
+@model HotelSearchApp.Web.Models.UnifiedSearchViewModel
+
+@{
+    ViewData["Title"] = "Hotel Search";
+}
+
+<style>
+    .search-container {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .search-form {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: relative;
+    }
+    
+    .search-box {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        background: white;
+        width: 100%;
+    }
+    
+    .search-box label {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+    
+    .input-with-icon {
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    
+    .location-icon {
+        position: absolute;
+        left: 8px;
+        color: #333;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 10px 10px 10px 30px;
+        border: none;
+        font-size: 16px;
+        outline: none;
+    }
+    
+    .clear-button {
+        position: absolute;
+        right: 8px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: #999;
+    }
+    
+    .search-button {
+        padding: 12px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        width: fit-content;
+        align-self: flex-end;
+        display: none; /* Hide the button since we're using real-time search */
+    }
+    
+    .navigation-links {
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .search-info {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+    }
+    
+    /* Popup results container */
+    .search-results-popup {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .search-results {
+        margin-top: 20px;
+    }
+    
+    .result-item {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+    }
+    
+    .result-item:hover {
+        background-color: #f9f9f9;
+    }
+    
+    .result-primary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+    
+    .result-address {
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .hotel-name {
+        font-weight: bold;
+    }
+    
+    .highlight {
+        color: #007bff;
+    }
+    
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .loading-indicator {
+        display: none;
+        position: absolute;
+        right: 40px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @@keyframes spin {
+        0% { transform: translateY(-50%) rotate(0deg); }
+        100% { transform: translateY(-50%) rotate(360deg); }
+    }
+</style>
+
+<div class="search-container">
+    <h1>Hotel Search Application</h1>
+
+    <div class="search-form">
+        <div class="search-box">
+            <label for="SearchQuery">Kota, tujuan, atau nama hotel</label>
+            <div class="input-with-icon">
+                <span class="location-icon">📍</span>
+                <input id="SearchQuery" name="SearchQuery" class="search-input" 
+                       placeholder="Cari lokasi atau hotel..." 
+                       value="@Model.SearchQuery" 
+                       autocomplete="off"/>
+                <button type="button" class="clear-button" onclick="clearSearch()">✕</button>
+                <div class="loading-indicator" id="loadingIndicator"></div>
+            </div>
+        </div>
+        
+        <!-- Popup results container -->
+        <div id="searchResultsPopup" class="search-results-popup"></div>
+    </div>
+
+    <div class="navigation-links">
+        <a asp-controller="Hotel" asp-action="Index">Fuzzy Search</a> | 
+        <a asp-controller="HotelNGram" asp-action="Index">N-Gram Search</a> | 
+        <a asp-controller="UnifiedSearch" asp-action="Index">Unified Search</a>
+    </div>
+
+    <div id="searchResults" class="search-results">
+        @if (Model.SearchResults != null)
+        {
+            <div class="search-info">
+                <strong>Search Method:</strong> @Model.SearchMethod |
+                <strong>Execution Time:</strong> @Model.TotalElapsedMilliseconds ms | 
+                <strong>Total Results:</strong> @Model.SearchResults.TotalHits hotels
+            </div>
+
+            <div class="search-results-list">
+                @foreach (var hotel in Model.SearchResults.Items)
+                {
+                    <div class="result-item">
+                        <div class="result-primary">
+                            @if (!string.IsNullOrEmpty(hotel.CityName))
+                            {
+                                <span class="highlight">@hotel.CityName</span>
+                            }
+
+                            @if (!string.IsNullOrEmpty(hotel.HotelName))
+                            {
+                                <span class="hotel-name">@hotel.HotelName</span>
+                            }
+                        </div>
+                        <div class="result-address">
+                            @hotel.Address1, @hotel.CityName, @hotel.Country
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (Model.SearchResults.TotalPages > 1)
+            {
+                <div class="pagination">
+                    @if (Model.SearchResults.HasPreviousPage)
+                    {
+                        <a href="javascript:void(0)" onclick="loadPage(@(Model.SearchResults.PageNumber - 1))">Previous</a>
+                    }
+
+                    @for (int i = Math.Max(1, Model.SearchResults.PageNumber - 2); i <= Math.Min(Model.SearchResults.TotalPages, Model.SearchResults.PageNumber + 2); i++)
+                    {
+                        <a href="javascript:void(0)" 
+                           onclick="loadPage(@i)" 
+                           class="@(i == Model.SearchResults.PageNumber ? "active" : "")">@i</a>
+                    }
+
+                    @if (Model.SearchResults.HasNextPage)
+                    {
+                        <a href="javascript:void(0)" onclick="loadPage(@(Model.SearchResults.PageNumber + 1))">Next</a>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<script>
+    // Variabel global
+    let currentPage = 1;
+    let timeout = null;
+    let isSearching = false;
+    
+    // Inisialisasi saat dokumen siap
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('SearchQuery');
+        
+        // Event listener untuk input search
+        searchInput.addEventListener('input', function() {
+            // Clear timeout sebelumnya
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            
+            const query = this.value.trim();
+            
+            // Jika kosong, sembunyikan popup dan hentikan
+            if (query === '') {
+                hideSearchResults();
+                return;
+            }
+            
+            // Tambahkan delay 300ms (debounce)
+            timeout = setTimeout(function() {
+                performSearch(query);
+            }, 300);
+        });
+        
+        // Close popup jika klik di luar
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('searchResultsPopup').contains(e.target) && 
+                !document.getElementById('SearchQuery').contains(e.target)) {
+                hideSearchResults();
+            }
+        });
+    });
+    
+    // Fungsi untuk melakukan pencarian
+    function performSearch(query) {
+        // Jika sudah ada pencarian yang berjalan, hentikan
+        if (isSearching) return;
+        
+        isSearching = true;
+        document.getElementById('loadingIndicator').style.display = 'block';
+        
+        // Kirim request AJAX ke server
+        fetch(`/UnifiedSearch/Search?SearchQuery=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=10`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const searchResultsPopup = document.getElementById('searchResultsPopup');
+            searchResultsPopup.innerHTML = html;
+            searchResultsPopup.style.display = 'block';
+            
+            document.getElementById('searchResults').innerHTML = html;
+            
+            isSearching = false;
+            document.getElementById('loadingIndicator').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error searching:', error);
+            isSearching = false;
+            document.getElementById('loadingIndicator').style.display = 'none';
+        });
+    }
+    
+    // Fungsi untuk load halaman berikutnya
+    function loadPage(page) {
+        currentPage = page;
+        const query = document.getElementById('SearchQuery').value.trim();
+        
+        if (query !== '') {
+            performSearch(query);
+        }
+    }
+    
+    // Fungsi untuk hide search results
+    function hideSearchResults() {
+        document.getElementById('searchResultsPopup').style.display = 'none';
+    }
+    
+    // Fungsi untuk clear search
+    function clearSearch() {
+        document.getElementById('SearchQuery').value = '';
+        hideSearchResults();
+        // Clear search results dari main display juga
+        document.getElementById('searchResults').innerHTML = '';
+    }
+</script>

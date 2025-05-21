@@ -1,0 +1,119 @@
+@model HotelSearchApp.Web.Models.HotelSearchViewModel
+
+@{
+    ViewData["Title"] = "Hotel Search (N-Gram)";
+}
+
+<h2>Hotel Search with N-Gram</h2>
+
+<div class="card">
+    <h3>Search Parameters</h3>
+    
+    <form asp-controller="HotelNGram" asp-action="Search" method="get">
+        <div class="form-group">
+            <label asp-for="CityName">City Name</label>
+            <input asp-for="CityName" placeholder="e.g., Bandung, Jakarta" />
+            <span>Uses n-gram matching</span>
+        </div>
+        <div class="form-group">
+            <label asp-for="HotelCode">Hotel Code</label>
+            <input asp-for="HotelCode" placeholder="e.g., HTL123" />
+            <span>Exact match only</span>
+        </div>
+        <div class="form-group">
+            <label asp-for="HotelName">Hotel Name</label>
+            <input asp-for="HotelName" placeholder="e.g., Grand Hotel" />
+            <span>Uses n-gram matching</span>
+        </div>
+        <div class="form-group">
+            <label asp-for="Address1">Address</label>
+            <input asp-for="Address1" placeholder="e.g., Jalan Merdeka" />
+            <span>Uses n-gram matching</span>
+        </div>
+        <input type="hidden" asp-for="PageNumber" value="1" />
+        <input type="hidden" asp-for="PageSize" value="10" />
+        <button type="submit">Search</button>
+    </form>
+    
+    <div style="margin-top: 15px;">
+        <a href="@Url.Action("Index", "Hotel")">Switch to Fuzzy Search</a>
+    </div>
+</div>
+
+@if (Model.SearchResults != null)
+{
+    <div class="alert">
+        <strong>Search Method:</strong> @Model.SearchMethod |
+        <strong>Execution Time:</strong> @Model.TotalElapsedMilliseconds ms | 
+        <strong>Total Results:</strong> @Model.SearchResults.TotalHits hotels
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Hotel Code</th>
+                <th>Hotel Name</th>
+                <th>City Name</th>
+                <th>Address</th>
+                <th>Country</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var hotel in Model.SearchResults.Items)
+            {
+                <tr>
+                    <td>@hotel.HotelCode</td>
+                    <td>@hotel.HotelName</td>
+                    <td>@hotel.CityName</td>
+                    <td>
+                        @hotel.Address1
+                        @if (!string.IsNullOrEmpty(hotel.Address2))
+                        {
+                            <br/>@hotel.Address2
+                        }
+                    </td>
+                    <td>@hotel.Country</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (Model.SearchResults.TotalPages > 1)
+    {
+        <div class="pagination">
+            @if (Model.SearchResults.HasPreviousPage)
+            {
+                <a asp-controller="HotelNGram" asp-action="Search" 
+                   asp-route-CityName="@Model.CityName" 
+                   asp-route-HotelCode="@Model.HotelCode" 
+                   asp-route-HotelName="@Model.HotelName" 
+                   asp-route-Address1="@Model.Address1"
+                   asp-route-PageNumber="@(Model.SearchResults.PageNumber - 1)" 
+                   asp-route-PageSize="@Model.SearchResults.PageSize">Previous</a>
+            }
+
+            @for (int i = Math.Max(1, Model.SearchResults.PageNumber - 2); i <= Math.Min(Model.SearchResults.TotalPages, Model.SearchResults.PageNumber + 2); i++)
+            {
+                <a asp-controller="HotelNGram" asp-action="Search" 
+                   asp-route-CityName="@Model.CityName" 
+                   asp-route-HotelCode="@Model.HotelCode" 
+                   asp-route-HotelName="@Model.HotelName" 
+                   asp-route-Address1="@Model.Address1"
+                   asp-route-PageNumber="@i" 
+                   asp-route-PageSize="@Model.SearchResults.PageSize"
+                   class="@(i == Model.SearchResults.PageNumber ? "active" : "")">@i</a>
+            }
+
+            @if (Model.SearchResults.HasNextPage)
+            {
+                <a asp-controller="HotelNGram" asp-action="Search" 
+                   asp-route-CityName="@Model.CityName" 
+                   asp-route-HotelCode="@Model.HotelCode" 
+                   asp-route-HotelName="@Model.HotelName" 
+                   asp-route-Address1="@Model.Address1"
+                   asp-route-PageNumber="@(Model.SearchResults.PageNumber + 1)" 
+                   asp-route-PageSize="@Model.SearchResults.PageSize">Next</a>
+            }
+        </div>
+    }
+}

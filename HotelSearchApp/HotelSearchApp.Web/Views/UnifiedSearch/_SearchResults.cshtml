@@ -1,0 +1,69 @@
+@model HotelSearchApp.Web.Models.UnifiedSearchViewModel
+
+@if (Model.SearchResults != null)
+{
+    <div class="search-info">
+        <strong>Search Method:</strong> @Model.SearchMethod |
+        <strong>Execution Time:</strong> @Model.TotalElapsedMilliseconds ms | 
+        <strong>Total Results:</strong> @Model.SearchResults.TotalHits hotels
+    </div>
+
+    <div class="search-results-list">
+        @if (Model.SearchResults.TotalHits > 0)
+        {
+            @foreach (var hotel in Model.SearchResults.Items)
+            {
+                <div class="result-item">
+                    <div class="result-primary">
+                        @if (!string.IsNullOrEmpty(hotel.CityName))
+                        {
+                            <span class="highlight">@hotel.CityName</span>
+                        }
+
+                        @if (!string.IsNullOrEmpty(hotel.HotelName))
+                        {
+                            <span class="hotel-name">@hotel.HotelName</span>
+                        }
+                    </div>
+                    <div class="result-address">
+                        @hotel.Address1, @hotel.CityName, @hotel.Country
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="result-item">
+                <div class="result-primary">No hotels found</div>
+            </div>
+        }
+    </div>
+
+    @if (Model.SearchResults.TotalPages > 1)
+    {
+        <div class="pagination">
+            @if (Model.SearchResults.HasPreviousPage)
+            {
+                <a href="javascript:void(0)" onclick="loadPage(@(Model.SearchResults.PageNumber - 1))">Previous</a>
+            }
+
+            @for (int i = Math.Max(1, Model.SearchResults.PageNumber - 2); i <= Math.Min(Model.SearchResults.TotalPages, Model.SearchResults.PageNumber + 2); i++)
+            {
+                <a href="javascript:void(0)" 
+                   onclick="loadPage(@i)" 
+                   class="@(i == Model.SearchResults.PageNumber ? "active" : "")">@i</a>
+            }
+
+            @if (Model.SearchResults.HasNextPage)
+            {
+                <a href="javascript:void(0)" onclick="loadPage(@(Model.SearchResults.PageNumber + 1))">Next</a>
+            }
+        </div>
+    }
+}
+else
+{
+    <div class="result-item">
+        <div class="result-primary">Start typing to search...</div>
+    </div>
+}

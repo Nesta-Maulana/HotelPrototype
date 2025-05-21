@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Hotel Search App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: inline-block; width: 100px; }
+        input { padding: 5px; width: 250px; }
+        button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .pagination { margin-top: 20px; }
+        .pagination a { padding: 8px 16px; text-decoration: none; color: black; }
+        .pagination a.active { background-color: #4CAF50; color: white; }
+        .pagination a:hover:not(.active) { background-color: #ddd; }
+        .alert { padding: 15px; background-color: #f8f9fa; border: 1px solid #ddd; margin-bottom: 20px; }
+        nav ul { display: flex; list-style: none; gap: 20px; padding: 0; }
+        nav a { text-decoration: none; color: #007bff; }
+        nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hotel Search Application</h1>
+            <nav>
+                <ul>
+                    <li><a href="@Url.Action("Index", "Hotel")">Fuzzy Search</a></li>
+                    <li><a href="@Url.Action("Index", "HotelNGram")">N-Gram Search</a></li>
+                    <li><a href="@Url.Action("Index", "UnifiedSearch")">Unified Search</a></li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            @RenderBody()
+        </main>
+        <footer>
+            <hr />
+            <p>&copy; 2025 - Hotel Search App</p>
+        </footer>
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

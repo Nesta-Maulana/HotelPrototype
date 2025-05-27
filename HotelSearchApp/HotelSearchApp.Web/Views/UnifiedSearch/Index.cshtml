@@ -90,7 +90,7 @@
         border-radius: 4px;
     }
     
-    /* Suggestions dropdown styles */
+    /* Updated suggestions dropdown styles for new format */
     .suggestions-dropdown {
         position: absolute;
         top: 100%;
@@ -101,89 +101,157 @@
         border-top: none;
         border-radius: 0 0 8px 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        max-height: 300px;
+        max-height: 500px;
         overflow-y: auto;
         z-index: 1000;
         display: none;
     }
     
-    .suggestion-item {
-        padding: 16px 20px;
-        cursor: pointer;
-        border-bottom: 1px solid #f0f0f0;
-        display: flex;
-        align-items: center;
-        transition: all 0.2s ease;
-        background: white;
+    .suggestions-container {
+        padding: 15px 20px;
     }
     
-    .suggestion-item:last-child {
+    .suggestions-header {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #333;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+    
+    .suggested-places {
+        margin-bottom: 20px;
+    }
+    
+    .suggested-places h4 {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: #007bff;
+    }
+    
+    .places-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .place-item {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 20px;
+        padding: 6px 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .place-item:hover,
+    .place-item.highlighted {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+        transform: translateY(-1px);
+    }
+    
+    .hotels-section {
+        margin-top: 15px;
+    }
+    
+    .hotels-section h4 {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
+    .hotel-suggestion-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .hotel-suggestion-item:last-child {
         border-bottom: none;
     }
     
-    .suggestion-item:hover,
-    .suggestion-item.highlighted {
+    .hotel-suggestion-item:hover,
+    .hotel-suggestion-item.highlighted {
         background-color: #f8f9fa;
-        transform: translateX(2px);
+        padding-left: 5px;
+        transition: all 0.2s ease;
     }
     
-    .suggestion-icon {
-        margin-right: 15px;
-        color: #007bff;
-        font-size: 16px;
+    .hotel-suggestion-primary {
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
+        gap: 8px;
+        margin-bottom: 2px;
     }
     
-    .suggestion-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    .suggestion-city {
-        font-size: 16px;
-        font-weight: 500;
-        color: #333;
-        line-height: 1.2;
-    }
-    
-    .suggestion-country {
-        font-size: 13px;
-        color: #666;
-        line-height: 1.2;
-    }
-    
-    .suggestion-match {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 0 2px;
-        border-radius: 2px;
-    }
-    
-    .suggestion-info {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
+    .hotel-suggestion-code {
         font-size: 12px;
         color: #666;
-        gap: 1px;
+        background-color: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
     }
     
-    .suggestion-type {
-        color: #007bff;
+    .hotel-suggestion-name {
         font-weight: 500;
+        color: #333;
+        font-size: 14px;
     }
     
-    .suggestion-count {
-        color: #999;
+    .hotel-suggestion-location {
+        font-size: 12px;
+        color: #666;
+        margin-left: 20px;
     }
     
-    /* Search results popup styles */
+    /* Loading states */
+    .loading-indicator {
+        display: none;
+        position: absolute;
+        right: 40px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @@keyframes spin {
+        0% { transform: translateY(-50%) rotate(0deg); }
+        100% { transform: translateY(-50%) rotate(360deg); }
+    }
+    
+    .suggestions-loading {
+        padding: 20px 20px;
+        text-align: center;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .suggestions-loading::after {
+        content: "...";
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @@keyframes dots {
+        0%, 20% { content: "."; }
+        40% { content: ".."; }
+        60% { content: "..."; }
+        80%, 100% { content: ""; }
+    }
+    
+    /* Search results styles */
     .search-results-popup {
         position: absolute;
         top: 100%;
@@ -239,45 +307,6 @@
         display: flex;
         gap: 10px;
     }
-    
-    .loading-indicator {
-        display: none;
-        position: absolute;
-        right: 40px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @@keyframes spin {
-        0% { transform: translateY(-50%) rotate(0deg); }
-        100% { transform: translateY(-50%) rotate(360deg); }
-    }
-    
-    /* Suggestions loading indicator */
-    .suggestions-loading {
-        padding: 12px 15px;
-        text-align: center;
-        color: #666;
-        font-size: 14px;
-    }
-    
-    .suggestions-loading::after {
-        content: "...";
-        animation: dots 1.5s steps(4, end) infinite;
-    }
-    
-    @@keyframes dots {
-        0%, 20% { content: "."; }
-        40% { content: ".."; }
-        60% { content: "..."; }
-        80%, 100% { content: ""; }
-    }
 </style>
 
 <div class="search-container">
@@ -296,7 +325,7 @@
                 <div class="loading-indicator" id="loadingIndicator"></div>
             </div>
             
-            <!-- Suggestions dropdown -->
+            <!-- Updated suggestions dropdown -->
             <div id="suggestionsDropdown" class="suggestions-dropdown"></div>
         </div>
         
@@ -374,6 +403,7 @@
     let isSearching = false;
     let currentSuggestionIndex = -1;
     let suggestions = [];
+    let hotels = [];
     let isSelectingSuggestion = false;
     
     // Initialize when document is ready
@@ -417,12 +447,13 @@
         
         // Handle keyboard navigation
         searchInput.addEventListener('keydown', function(e) {
-            if (suggestions.length === 0) return;
+            const totalItems = suggestions.length + hotels.length;
+            if (totalItems === 0) return;
             
             switch(e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestions.length - 1);
+                    currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, totalItems - 1);
                     highlightSuggestion();
                     break;
                 case 'ArrowUp':
@@ -432,10 +463,18 @@
                     break;
                 case 'Enter':
                     e.preventDefault();
-                    if (currentSuggestionIndex >= 0 && suggestions.length > currentSuggestionIndex) {
-                        const selectedSuggestion = suggestions[currentSuggestionIndex];
-                        const cityName = typeof selectedSuggestion === 'string' ? selectedSuggestion : selectedSuggestion.cityName;
-                        selectSuggestion(cityName);
+                    if (currentSuggestionIndex >= 0) {
+                        if (currentSuggestionIndex < suggestions.length) {
+                            // Selected a city suggestion
+                            const selectedSuggestion = suggestions[currentSuggestionIndex];
+                            const cityName = selectedSuggestion.cityName;
+                            selectSuggestion(cityName);
+                        } else {
+                            // Selected a hotel
+                            const hotelIndex = currentSuggestionIndex - suggestions.length;
+                            const selectedHotel = hotels[hotelIndex];
+                            selectHotel(selectedHotel.hotelCode);
+                        }
                     } else {
                         performSearch(this.value.trim());
                     }
@@ -469,8 +508,9 @@
         fetch(`/UnifiedSearch/GetCitySuggestions?query=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
-                suggestions = data || [];
-                displaySuggestions(suggestions, query);
+                suggestions = data.suggestions || [];
+                hotels = data.hotels || [];
+                displaySuggestions(suggestions, hotels, query);
             })
             .catch(error => {
                 console.error('Error fetching suggestions:', error);
@@ -478,38 +518,60 @@
             });
     }
     
-    // Display suggestions in dropdown
-    function displaySuggestions(suggestionsList, query) {
+    // Display suggestions in new format
+    function displaySuggestions(suggestionsList, hotelsList, query) {
         const dropdown = document.getElementById('suggestionsDropdown');
         
-        if (!suggestionsList || suggestionsList.length === 0) {
+        if ((!suggestionsList || suggestionsList.length === 0) && (!hotelsList || hotelsList.length === 0)) {
             hideSuggestions();
             return;
         }
         
-        let html = '';
-        suggestionsList.forEach((suggestion, index) => {
-            // Extract city name and create proper suggestion object
-            const cityName = typeof suggestion === 'string' ? suggestion : suggestion.cityName;
-            const country = typeof suggestion === 'string' ? 'Indonesia' : (suggestion.country || 'Indonesia');
-            const hotelCount = typeof suggestion === 'string' ? null : suggestion.hotelCount;
+        let html = '<div class="suggestions-container">';
+        
+        // Suggested Places section
+        if (suggestionsList && suggestionsList.length > 0) {
+            html += '<div class="suggested-places">';
+            html += '<h4>Suggested Places</h4>';
+            html += '<div class="places-list">';
             
-            const highlightedCity = highlightMatch(cityName, query);
+            suggestionsList.forEach((suggestion, index) => {
+                const cityName = suggestion.cityName;
+                const highlightedCity = highlightMatch(cityName, query);
+                
+                html += `
+                    <div class="place-item" onclick="selectSuggestion('${cityName}')" data-index="${index}">
+                        ${highlightedCity}
+                    </div>
+                `;
+            });
             
-            html += `
-                <div class="suggestion-item" onclick="selectSuggestion('${cityName}')" data-index="${index}">
-                    <div class="suggestion-icon">📍</div>
-                    <div class="suggestion-content">
-                        <div class="suggestion-city">${highlightedCity}</div>
-                        <div class="suggestion-country">${country}</div>
+            html += '</div></div>';
+        }
+        
+        // Top Hotels section
+        if (hotelsList && hotelsList.length > 0) {
+            const cityName = suggestionsList.length > 0 ? suggestionsList[0].cityName : 'Selected Location';
+            html += '<div class="hotels-section">';
+            html += `<h4>Top Hotels in ${cityName}</h4>`;
+            
+            hotelsList.forEach((hotel, index) => {
+                const suggestionIndex = suggestionsList.length + index;
+                html += `
+                    <div class="hotel-suggestion-item" onclick="selectHotel('${hotel.hotelCode}')" data-index="${suggestionIndex}">
+                        <div class="hotel-suggestion-primary">
+                            <span class="hotel-suggestion-code">${hotel.hotelCode || 'N/A'}</span>
+                            <span class="hotel-suggestion-name">${hotel.hotelName || 'Unknown Hotel'}</span>
+                        </div>
+                        <div class="hotel-suggestion-location">${hotel.address1 || ''}, ${hotel.cityName || ''}, ${hotel.country || ''}</div>
                     </div>
-                    <div class="suggestion-info">
-                        <div class="suggestion-type">Region</div>
-                        ${hotelCount ? `<div class="suggestion-count">${hotelCount} hotels</div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        html += '</div>';
         
         dropdown.innerHTML = html;
         dropdown.style.display = 'block';
@@ -519,37 +581,36 @@
     function highlightMatch(text, query) {
         if (!query || !text) return text;
         
-        // Create a case-insensitive regex to find matching parts
         const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(${escapedQuery})`, 'gi');
-        return text.replace(regex, '<span class="suggestion-match">$1</span>');
+        return text.replace(regex, '<strong style="background-color: #fff3cd; color: #856404;">$1</strong>');
     }
     
     // Show suggestions loading state
     function showSuggestionsLoading() {
         const dropdown = document.getElementById('suggestionsDropdown');
-        dropdown.innerHTML = '<div class="suggestions-loading">Mencari kota</div>';
+        dropdown.innerHTML = '<div class="suggestions-loading">Mencari tempat dan hotel</div>';
         dropdown.style.display = 'block';
     }
     
     // Highlight suggestion on keyboard navigation
     function highlightSuggestion() {
-        const suggestionItems = document.querySelectorAll('.suggestion-item');
+        const allItems = document.querySelectorAll('.place-item, .hotel-suggestion-item');
         
-        suggestionItems.forEach((item, index) => {
+        allItems.forEach((item, index) => {
             item.classList.remove('highlighted');
             if (index === currentSuggestionIndex) {
                 item.classList.add('highlighted');
+                item.scrollIntoView({ block: 'nearest' });
             }
         });
     }
     
-    // Select a suggestion
+    // Select a city suggestion
     function selectSuggestion(city) {
         isSelectingSuggestion = true;
         
         const searchInput = document.getElementById('SearchQuery');
-        // Handle both string and object suggestions
         const cityName = typeof city === 'string' ? city : city.cityName || city;
         searchInput.value = cityName;
         
@@ -563,12 +624,30 @@
         }, 100);
     }
     
+    // Select a hotel
+    function selectHotel(hotelCode) {
+        isSelectingSuggestion = true;
+        
+        const searchInput = document.getElementById('SearchQuery');
+        searchInput.value = hotelCode;
+        
+        hideSuggestions();
+        currentSuggestionIndex = -1;
+        
+        // Perform search with selected hotel code
+        setTimeout(() => {
+            performSearch(hotelCode);
+            isSelectingSuggestion = false;
+        }, 100);
+    }
+    
     // Hide suggestions dropdown
     function hideSuggestions() {
         const dropdown = document.getElementById('suggestionsDropdown');
         dropdown.style.display = 'none';
         dropdown.innerHTML = '';
         suggestions = [];
+        hotels = [];
     }
     
     // Perform search (existing function)

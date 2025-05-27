@@ -26,5 +26,7 @@ namespace HotelSearchApp.Core.Interfaces
         
         // Add new method for city suggestions
         Task<IEnumerable<CitySuggestionDto>> GetCitySuggestionsAsync(string query, int maxSuggestions = 5);
+        Task<IEnumerable<Hotel>> GetHotelsByCityAsync(string cityName, int maxHotels = 10);
+
     }
 }

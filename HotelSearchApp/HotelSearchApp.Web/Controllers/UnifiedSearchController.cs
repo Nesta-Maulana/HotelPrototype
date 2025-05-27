@@ -100,34 +100,59 @@ namespace HotelSearchApp.Web.Controllers
                 return View("Index", viewModel);
             }
         }
+        
         [HttpGet]
         public async Task<JsonResult> GetCitySuggestions(string query)
         {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
             {
-                return Json(new List<object>());
+                return Json(new { suggestions = new List<object>(), hotels = new List<object>() });
             }
 
             try
             {
+                // Get city suggestions
                 var suggestions = await _elasticSearchService.GetCitySuggestionsAsync(query, 5);
                 
-                // Convert to anonymous objects for JSON serialization
-                var result = suggestions.Select(s => new
+                // Get hotels for the best matching city
+                var topHotels = new List<object>();
+                if (suggestions.Any())
+                {
+                    var bestMatchCity = suggestions.First().CityName;
+                    var hotels = await _elasticSearchService.GetHotelsByCityAsync(bestMatchCity, 10);
+                    
+                    topHotels = hotels.Select(h => new
+                    {
+                        id = h.Id,
+                        hotelCode = h.HotelCode,
+                        hotelName = h.HotelName,
+                        cityName = h.CityName,
+                        address1 = h.Address1,
+                        address2 = h.Address2,
+                        country = h.Country
+                    }).ToList<object>();
+                }
+                
+                // Convert suggestions to anonymous objects for JSON serialization
+                var suggestionsResult = suggestions.Select(s => new
                 {
                     cityName = s.CityName,
                     country = s.Country,
                     hotelCount = s.HotelCount,
                     similarity = s.Similarity
-                });
+                }).ToList();
                 
-                return Json(result);
+                return Json(new { 
+                    suggestions = suggestionsResult,
+                    hotels = topHotels,
+                    searchQuery = query
+                });
             }
             catch (Exception ex)
             {
                 // Log the exception
                 Console.WriteLine($"Error getting city suggestions: {ex.Message}");
-                return Json(new List<object>());
+                return Json(new { suggestions = new List<object>(), hotels = new List<object>() });
             }
         }
     }

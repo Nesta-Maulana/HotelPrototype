@@ -2210,5 +2210,51 @@ namespace HotelSearchApp.Infrastructure.Services
 
             return matrix[sourceLength, targetLength];
         }
+        public async Task<IEnumerable<Hotel>> GetHotelsByCityAsync(string cityName, int maxHotels = 10)
+        {
+            if (string.IsNullOrWhiteSpace(cityName))
+            {
+                return new List<Hotel>();
+            }
+
+            try
+            {
+                var searchDescriptor = new SearchDescriptor<Hotel>()
+                    .Index(HotelIndexName)
+                    .Size(maxHotels)
+                    .Query(q => q.Bool(b => b
+                        .Should(
+                            // Exact match on city name (highest priority)
+                            q.Term(t => t.Field(f => f.CityName.Suffix("keyword")).Value(cityName).Boost(10.0)),
+                            // Fuzzy match for typo tolerance
+                            q.Match(m => m
+                                .Field(f => f.CityName)
+                                .Query(cityName)
+                                .Fuzziness(Fuzziness.Auto)
+                                .Boost(5.0)
+                            )
+                        )
+                        .MinimumShouldMatch(1)
+                    ))
+                    .Sort(s => s
+                        .Descending(SortSpecialField.Score)  // Sort by relevance score first
+                        .Ascending(f => f.HotelName.Suffix("keyword"))  // Then by hotel name alphabetically
+                    );
+
+                var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+                
+                if (!response.IsValid || !response.Documents.Any())
+                {
+                    return new List<Hotel>();
+                }
+
+                return response.Documents.ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting hotels by city: {ex.Message}");
+                return new List<Hotel>();
+            }
+        }
     }
 }

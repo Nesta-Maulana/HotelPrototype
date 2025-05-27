@@ -25,6 +25,7 @@ namespace HotelSearchApp.Web.Controllers
             return View(new UnifiedSearchViewModel());
         }
 
+        // Add this to UnifiedSearchController.cs
         [HttpGet]
         public async Task<IActionResult> Search(UnifiedSearchViewModel viewModel)
         {
@@ -54,6 +55,16 @@ namespace HotelSearchApp.Web.Controllers
                 viewModel.SearchResults = searchResult;
                 viewModel.TotalElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
                 viewModel.SearchMethod = "Unified";
+
+                // Set special search method if detected
+                if (searchResult.IsCountrySearch)
+                {
+                    viewModel.SearchMethod = "Country Search";
+                }
+                else if (searchResult.IsHotelCodeSearch)
+                {
+                    viewModel.SearchMethod = "Hotel Code Search";
+                }
 
                 // Track search analytics
                 viewModel.SearchSuccessful = searchResult.TotalHits > 0;

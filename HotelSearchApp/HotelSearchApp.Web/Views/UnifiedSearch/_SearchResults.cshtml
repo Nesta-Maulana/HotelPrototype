@@ -15,6 +15,35 @@ else if (Model.SearchResults != null)
     </div>
 
     <div class="search-results-list">
+        @if (Model.SearchResults.IsCountrySearch && Model.SearchResults.TopCities.Any())
+        {
+            <div class="country-search-results">
+                <div class="top-cities">
+                    <h3>Top Cities in @Model.SearchQuery</h3>
+                    <div class="cities-list">
+                        @foreach (var city in Model.SearchResults.TopCities)
+                        {
+                            <div class="city-item">
+                                <a href="javascript:void(0)" onclick="searchCity('@city')">
+                                    <span class="city-name">@city</span>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+                
+                <h3>Top Hotels in @Model.SearchQuery</h3>
+            </div>
+        }
+        else if (Model.SearchResults.IsHotelCodeSearch)
+        {
+            <div class="hotel-code-search-results">
+                <div class="search-code-info">
+                    <p>Showing results for hotel code search: <strong>@Model.SearchQuery</strong></p>
+                </div>
+            </div>
+        }
+
         @if (Model.SearchResults.TotalHits > 0)
         {
             @foreach (var hotel in Model.SearchResults.Items)
@@ -100,8 +129,209 @@ else
             <ul>
                 <li><small>Search by hotel name, city, or hotel code</small></li>
                 <li><small>Search works even with misspelled words</small></li>
+                <li><small>Search by country name to see top cities and hotels</small></li>
+                <li><small>Enter a hotel code number (e.g., 10000121) to find specific hotels</small></li>
                 <li><small>Use at least 3 characters for better results</small></li>
             </ul>
         </div>
     </div>
 }
+
+<script>
+    function searchCity(cityName) {
+        document.getElementById('SearchQuery').value = cityName;
+        performSearch(cityName);
+    }
+</script>
+
+<style>
+    .country-search-results {
+        margin-bottom: 20px;
+    }
+    
+    .top-cities {
+        padding: 15px;
+        background-color: #f5f5f5;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .cities-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .city-item {
+        padding: 8px 15px;
+        background-color: #e0e0e0;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .city-item:hover {
+        background-color: #d0d0d0;
+    }
+    
+    .city-name {
+        font-weight: 500;
+    }
+    /* Add these styles to your site's CSS or include in the <style> tag */
+
+.country-search-container {
+    margin-bottom: 25px;
+}
+
+.country-header {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.top-cities-container {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.cities-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.city-item {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.city-item:hover {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.city-icon {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.city-name {
+    font-weight: 500;
+}
+
+.top-hotels-section {
+    margin-top: 25px;
+}
+
+.country-result-item {
+    display: flex;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background-color: white;
+    border: 1px solid #eee;
+    transition: all 0.2s ease;
+}
+
+.country-result-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    border-color: #d0d0d0;
+}
+
+.hotel-info {
+    flex: 1;
+}
+
+.hotel-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.hotel-location {
+    font-size: 14px;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.location-icon {
+    margin-right: 5px;
+    color: #007bff;
+}
+
+.search-section-divider {
+    margin: 30px 0;
+    border-top: 1px solid #eee;
+    position: relative;
+}
+
+.section-label {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 0 15px;
+    color: #999;
+    font-size: 14px;
+}
+
+/* Hotel Code Search Styles */
+.hotel-code-search-results {
+    margin-bottom: 20px;
+}
+
+.search-code-info {
+    background-color: #edf8ff;
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #007bff;
+}
+
+.search-code-info p {
+    margin: 0;
+    color: #0056b3;
+}
+
+.hotel-code-result {
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    margin-bottom: 12px;
+    transition: transform 0.2s ease;
+}
+
+.hotel-code-result:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+
+.code-highlight {
+    color: #d63384;
+    font-weight: 600;
+    background-color: #f5f0f4;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+</style>

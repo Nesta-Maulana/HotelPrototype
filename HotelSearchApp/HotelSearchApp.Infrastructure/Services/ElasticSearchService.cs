@@ -648,6 +648,42 @@ namespace HotelSearchApp.Infrastructure.Services
             }
 
             var stopwatch = Stopwatch.StartNew();
+            if (IsHotelCodeSearch(searchQuery))
+            {
+                var codeResults = await SearchHotelsByCode(searchQuery, pageSize);
+
+                stopwatch.Stop();
+
+                return new ElasticSearchResponse<Hotel>
+                {
+                    Items = codeResults,
+                    TotalHits = codeResults.Count,
+                    ElapsedTime = stopwatch.Elapsed,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    IsHotelCodeSearch = true, // Add this property to ElasticSearchResponse class
+                };
+            }
+
+            if (IsCountrySearch(searchQuery))
+            {
+                var (topCities, topHotels) = await GetCountrySearchResults(searchQuery, pageSize);
+
+                stopwatch.Stop();
+
+                var response = new ElasticSearchResponse<Hotel>
+                {
+                    Items = topHotels,
+                    TotalHits = topHotels.Count,
+                    ElapsedTime = stopwatch.Elapsed,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TopCities = topCities, // Add this property to ElasticSearchResponse class
+                    IsCountrySearch = true, // Add this property to ElasticSearchResponse class
+                };
+
+                return response;
+            }
 
             // Cek jika query adalah kode hotel lengkap (dengan awalan huruf)
             bool isHotelCode = IsHotelCodeQuery(searchQuery);
@@ -1647,6 +1683,339 @@ namespace HotelSearchApp.Infrastructure.Services
             }
 
             return searchResponse.Documents.Take(maxResults);
+        }
+
+        private bool IsCountrySearch(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // Common countries list - can be expanded
+            var commonCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "andorra",
+                "united arab emirates",
+                "antigua and barbuda",
+                "anguilla (uk)",
+                "albania",
+                "armenia",
+                "netherlands antilles (netherlands)",
+                "angola",
+                "argentina",
+                "american samoa",
+                "austria",
+                "australia",
+                "aruba (netherlands)",
+                "azerbaijan",
+                "bosnia and herzegovina",
+                "barbados",
+                "bangladesh",
+                "belgium",
+                "burkina faso",
+                "bulgaria",
+                "bahrain",
+                "burundi",
+                "benin",
+                "saint barthelemy",
+                "bermuda",
+                "brunei",
+                "bolivia",
+                "brazil",
+                "bahamas",
+                "bhutan",
+                "botswana",
+                "belize",
+                "canada",
+                "democratic republic of congo",
+                "people s republic of congo",
+                "switzerland",
+                "cote d ivoire",
+                "cook islands",
+                "chile",
+                "cameroon",
+                "china",
+                "colombia",
+                "costa rica",
+                "cuba",
+                "cape verde",
+                "curacao",
+                "cyprus",
+                "czech republic",
+                "germany",
+                "djibouti",
+                "denmark",
+                "dominican republic",
+                "algeria",
+                "ecuador",
+                "estonia",
+                "egypt",
+                "eritrea",
+                "spain",
+                "ethiopia",
+                "finland",
+                "fiji",
+                "micronesia",
+                "faroe islands",
+                "france",
+                "gabon",
+                "united kingdom",
+                "grenada",
+                "georgia",
+                "french guiana",
+                "ghana",
+                "gibraltar",
+                "greenland (denmark)",
+                "gambia",
+                "guinea",
+                "guadeloupe (france)",
+                "equatorial guinea",
+                "greece",
+                "guatemala",
+                "guam",
+                "guinea-bissau",
+                "guyana",
+                "hong kong",
+                "honduras",
+                "croatia",
+                "haiti",
+                "hungary",
+                "indonesia",
+                "ireland",
+                "israel",
+                "india",
+                "iraq",
+                "iran",
+                "iceland",
+                "italy",
+                "jamaica",
+                "jordan",
+                "japan",
+                "kenya",
+                "kyrgyzstan",
+                "cambodia",
+                "comoros",
+                "saint kitts and nevis",
+                "south korea",
+                "kuwait",
+                "cayman islands (uk)",
+                "kazakhstan",
+                "laos",
+                "lebanon",
+                "saint lucia",
+                "liechtenstein",
+                "sri lanka",
+                "liberia",
+                "lesotho",
+                "lithuania",
+                "luxembourg",
+                "latvia",
+                "libya arab jamahiriya",
+                "morocco",
+                "monaco",
+                "moldova",
+                "montenegro",
+                "madagascar",
+                "macedonia",
+                "mali",
+                "myanmar",
+                "mongolia",
+                "macau",
+                "northern mariana islands",
+                "martinique (france)",
+                "mauritania",
+                "malta",
+                "mauritius",
+                "maldives",
+                "malawi",
+                "mexico",
+                "malaysia",
+                "mozambique",
+                "namibia",
+                "new caledonia",
+                "niger",
+                "nigeria",
+                "nicaragua",
+                "netherlands",
+                "norway",
+                "nepal",
+                "niue",
+                "new zealand",
+                "oman",
+                "panama",
+                "peru",
+                "french polynesia",
+                "papua new guinea",
+                "philippines",
+                "pakistan",
+                "poland",
+                "puerto rico (usa)",
+                "palestine",
+                "portugal",
+                "palau",
+                "paraguay",
+                "qatar",
+                "reunion",
+                "romania",
+                "serbia",
+                "rwanda",
+                "saudi arabia",
+                "solomon islands",
+                "seychelles",
+                "sudan",
+                "sweden",
+                "singapore",
+                "slovenia",
+                "slovakia",
+                "sierra leone",
+                "san marino",
+                "senegal",
+                "suriname",
+                "sao tome and principe",
+                "el salvador",
+                "saint martin",
+                "swaziland",
+                "turks and caicos islands",
+                "chad",
+                "thailand",
+                "tajikistan",
+                "timor-leste",
+                "tunisia",
+                "tonga",
+                "turkey",
+                "trinidad and tobago",
+                "taiwan",
+                "tanzania",
+                "uganda",
+                "united states of america",
+                "uruguay",
+                "uzbekistan",
+                "saint vincent and the grenadines",
+                "venezuela",
+                "british vergin islands",
+                "u.s. virgin islands (usa)",
+                "vietnam",
+                "vanuatu",
+                "samoa",
+                "kosovo",
+                "south africa",
+                "zambia",
+                "zimbabwe",
+            };
+
+            return commonCountries.Contains(query.Trim());
+        }
+
+        private async Task<(List<string> TopCities, List<Hotel> TopHotels)> GetCountrySearchResults(
+            string countryName,
+            int pageSize
+        )
+        {
+            // Get all hotels in the country
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(HotelIndexName)
+                .Size(100) // Get more results to extract top cities and hotels
+                .Query(q =>
+                    q.Match(m =>
+                        m.Field(f => f.Country).Query(countryName).Fuzziness(Fuzziness.Auto)
+                    )
+                );
+
+            var searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+
+            if (!searchResponse.IsValid || !searchResponse.Documents.Any())
+                return (new List<string>(), new List<Hotel>());
+
+            var hotels = searchResponse.Documents.ToList();
+
+            // Group by city and get top 5 cities - filter out null values
+            var topCities = hotels
+                .Where(h => !string.IsNullOrEmpty(h.CityName))
+                .GroupBy(h => h.CityName)
+                .OrderByDescending(g => g.Count())
+                .Take(5)
+                .Select(g => g.Key!) // Use ! to tell compiler this won't be null (we filtered nulls above)
+                .ToList();
+
+            // Get top 10 hotels based on relevance or any other criteria
+            var topHotels = hotels.Take(10).ToList();
+
+            return (topCities, topHotels);
+        }
+
+        private bool IsHotelCodeSearch(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return false;
+
+            // Check if the query starts with a numeric sequence (potential hotel code)
+            // This regex matches a string that starts with at least 5 digits
+            return System.Text.RegularExpressions.Regex.IsMatch(query, @"^\d{5,}");
+        }
+
+        private async Task<List<Hotel>> SearchHotelsByCode(string query, int maxResults = 10)
+        {
+            // Extract the numeric part from the beginning of the query
+            string numericPart = new string(query.TakeWhile(char.IsDigit).ToArray());
+
+            // Extract the text part after the numeric part (if any)
+            string textPart = query.Substring(numericPart.Length).Trim();
+
+            // Build a query that searches for hotels with the numeric code part
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(HotelIndexName)
+                .Size(maxResults)
+                .Query(q =>
+                {
+                    // Base query - search for the numeric part in the hotel code
+                    QueryContainer codeQuery = q.Wildcard(w =>
+                        w.Field(f => f.HotelCode).Value($"*{numericPart}*").Boost(10.0)
+                    );
+
+                    // If there's additional text, use it to refine the search
+                    if (!string.IsNullOrWhiteSpace(textPart))
+                    {
+                        // Combine code search with text search
+                        return codeQuery
+                            && q.Bool(b =>
+                                b.Should(
+                                    // Match hotel name
+                                    q.Match(m =>
+                                        m.Field(f => f.HotelName)
+                                            .Query(textPart)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(3.0)
+                                    ),
+                                    // Match city name
+                                    q.Match(m =>
+                                        m.Field(f => f.CityName)
+                                            .Query(textPart)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(2.0)
+                                    ),
+                                    // Match country
+                                    q.Match(m =>
+                                        m.Field(f => f.Country)
+                                            .Query(textPart)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(1.0)
+                                    )
+                                )
+                            );
+                    }
+
+                    return codeQuery;
+                });
+
+            var searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+
+            if (!searchResponse.IsValid || !searchResponse.Documents.Any())
+            {
+                // Try searching in the n-gram index if no results found
+                searchDescriptor.Index(HotelNGramIndexName);
+                searchResponse = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+            }
+
+            return searchResponse.Documents.ToList();
         }
     }
 }

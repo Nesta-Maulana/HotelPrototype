@@ -26,6 +26,7 @@
         padding: 10px;
         background: white;
         width: 100%;
+        position: relative;
     }
     
     .search-box label {
@@ -74,7 +75,7 @@
         cursor: pointer;
         width: fit-content;
         align-self: flex-end;
-        display: none; /* Hide the button since we're using real-time search */
+        display: none;
     }
     
     .navigation-links {
@@ -89,7 +90,100 @@
         border-radius: 4px;
     }
     
-    /* Popup results container */
+    /* Suggestions dropdown styles */
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .suggestion-item {
+        padding: 16px 20px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        transition: all 0.2s ease;
+        background: white;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .suggestion-item:hover,
+    .suggestion-item.highlighted {
+        background-color: #f8f9fa;
+        transform: translateX(2px);
+    }
+    
+    .suggestion-icon {
+        margin-right: 15px;
+        color: #007bff;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .suggestion-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .suggestion-city {
+        font-size: 16px;
+        font-weight: 500;
+        color: #333;
+        line-height: 1.2;
+    }
+    
+    .suggestion-country {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.2;
+    }
+    
+    .suggestion-match {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 0 2px;
+        border-radius: 2px;
+    }
+    
+    .suggestion-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        font-size: 12px;
+        color: #666;
+        gap: 1px;
+    }
+    
+    .suggestion-type {
+        color: #007bff;
+        font-weight: 500;
+    }
+    
+    .suggestion-count {
+        color: #999;
+    }
+    
+    /* Search results popup styles */
     .search-results-popup {
         position: absolute;
         top: 100%;
@@ -101,7 +195,7 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         max-height: 400px;
         overflow-y: auto;
-        z-index: 1000;
+        z-index: 999;
         display: none;
     }
     
@@ -164,6 +258,26 @@
         0% { transform: translateY(-50%) rotate(0deg); }
         100% { transform: translateY(-50%) rotate(360deg); }
     }
+    
+    /* Suggestions loading indicator */
+    .suggestions-loading {
+        padding: 12px 15px;
+        text-align: center;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .suggestions-loading::after {
+        content: "...";
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @@keyframes dots {
+        0%, 20% { content: "."; }
+        40% { content: ".."; }
+        60% { content: "..."; }
+        80%, 100% { content: ""; }
+    }
 </style>
 
 <div class="search-container">
@@ -181,6 +295,9 @@
                 <button type="button" class="clear-button" onclick="clearSearch()">✕</button>
                 <div class="loading-indicator" id="loadingIndicator"></div>
             </div>
+            
+            <!-- Suggestions dropdown -->
+            <div id="suggestionsDropdown" class="suggestions-dropdown"></div>
         </div>
         
         <!-- Popup results container -->
@@ -250,54 +367,217 @@
 </div>
 
 <script>
-    // Variabel global
+    // Global variables
     let currentPage = 1;
-    let timeout = null;
+    let searchTimeout = null;
+    let suggestionsTimeout = null;
     let isSearching = false;
+    let currentSuggestionIndex = -1;
+    let suggestions = [];
+    let isSelectingSuggestion = false;
     
-    // Inisialisasi saat dokumen siap
+    // Initialize when document is ready
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('SearchQuery');
+        const suggestionsDropdown = document.getElementById('suggestionsDropdown');
         
-        // Event listener untuk input search
-        searchInput.addEventListener('input', function() {
-            // Clear timeout sebelumnya
-            if (timeout) {
-                clearTimeout(timeout);
-            }
-            
+        // Event listeners for search input
+        searchInput.addEventListener('input', function(e) {
             const query = this.value.trim();
             
-            // Jika kosong, sembunyikan popup dan hentikan
+            // Clear previous timeouts
+            if (searchTimeout) clearTimeout(searchTimeout);
+            if (suggestionsTimeout) clearTimeout(suggestionsTimeout);
+            
+            // Reset suggestion index
+            currentSuggestionIndex = -1;
+            
             if (query === '') {
+                hideSuggestions();
                 hideSearchResults();
                 return;
             }
             
-            // Tambahkan delay 300ms (debounce)
-            timeout = setTimeout(function() {
-                performSearch(query);
+            // Show suggestions immediately for city search
+            if (query.length >= 2) {
+                suggestionsTimeout = setTimeout(() => {
+                    if (!isSelectingSuggestion) {
+                        getSuggestions(query);
+                    }
+                }, 150);
+            }
+            
+            // Perform search with longer delay
+            searchTimeout = setTimeout(() => {
+                if (!isSelectingSuggestion) {
+                    performSearch(query);
+                }
             }, 300);
         });
         
-        // Close popup jika klik di luar
+        // Handle keyboard navigation
+        searchInput.addEventListener('keydown', function(e) {
+            if (suggestions.length === 0) return;
+            
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestions.length - 1);
+                    highlightSuggestion();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+                    highlightSuggestion();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if (currentSuggestionIndex >= 0 && suggestions.length > currentSuggestionIndex) {
+                        const selectedSuggestion = suggestions[currentSuggestionIndex];
+                        const cityName = typeof selectedSuggestion === 'string' ? selectedSuggestion : selectedSuggestion.cityName;
+                        selectSuggestion(cityName);
+                    } else {
+                        performSearch(this.value.trim());
+                    }
+                    break;
+                case 'Escape':
+                    hideSuggestions();
+                    currentSuggestionIndex = -1;
+                    break;
+            }
+        });
+        
+        // Close suggestions and search results when clicking outside
         document.addEventListener('click', function(e) {
-            if (!document.getElementById('searchResultsPopup').contains(e.target) && 
-                !document.getElementById('SearchQuery').contains(e.target)) {
+            if (!e.target.closest('.search-box')) {
+                hideSuggestions();
                 hideSearchResults();
             }
         });
     });
     
-    // Fungsi untuk melakukan pencarian
+    // Get city suggestions from server
+    function getSuggestions(query) {
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+        
+        // Show loading indicator
+        showSuggestionsLoading();
+        
+        fetch(`/UnifiedSearch/GetCitySuggestions?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                suggestions = data || [];
+                displaySuggestions(suggestions, query);
+            })
+            .catch(error => {
+                console.error('Error fetching suggestions:', error);
+                hideSuggestions();
+            });
+    }
+    
+    // Display suggestions in dropdown
+    function displaySuggestions(suggestionsList, query) {
+        const dropdown = document.getElementById('suggestionsDropdown');
+        
+        if (!suggestionsList || suggestionsList.length === 0) {
+            hideSuggestions();
+            return;
+        }
+        
+        let html = '';
+        suggestionsList.forEach((suggestion, index) => {
+            // Extract city name and create proper suggestion object
+            const cityName = typeof suggestion === 'string' ? suggestion : suggestion.cityName;
+            const country = typeof suggestion === 'string' ? 'Indonesia' : (suggestion.country || 'Indonesia');
+            const hotelCount = typeof suggestion === 'string' ? null : suggestion.hotelCount;
+            
+            const highlightedCity = highlightMatch(cityName, query);
+            
+            html += `
+                <div class="suggestion-item" onclick="selectSuggestion('${cityName}')" data-index="${index}">
+                    <div class="suggestion-icon">📍</div>
+                    <div class="suggestion-content">
+                        <div class="suggestion-city">${highlightedCity}</div>
+                        <div class="suggestion-country">${country}</div>
+                    </div>
+                    <div class="suggestion-info">
+                        <div class="suggestion-type">Region</div>
+                        ${hotelCount ? `<div class="suggestion-count">${hotelCount} hotels</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+    }
+    
+    // Highlight matching characters in suggestion
+    function highlightMatch(text, query) {
+        if (!query || !text) return text;
+        
+        // Create a case-insensitive regex to find matching parts
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return text.replace(regex, '<span class="suggestion-match">$1</span>');
+    }
+    
+    // Show suggestions loading state
+    function showSuggestionsLoading() {
+        const dropdown = document.getElementById('suggestionsDropdown');
+        dropdown.innerHTML = '<div class="suggestions-loading">Mencari kota</div>';
+        dropdown.style.display = 'block';
+    }
+    
+    // Highlight suggestion on keyboard navigation
+    function highlightSuggestion() {
+        const suggestionItems = document.querySelectorAll('.suggestion-item');
+        
+        suggestionItems.forEach((item, index) => {
+            item.classList.remove('highlighted');
+            if (index === currentSuggestionIndex) {
+                item.classList.add('highlighted');
+            }
+        });
+    }
+    
+    // Select a suggestion
+    function selectSuggestion(city) {
+        isSelectingSuggestion = true;
+        
+        const searchInput = document.getElementById('SearchQuery');
+        // Handle both string and object suggestions
+        const cityName = typeof city === 'string' ? city : city.cityName || city;
+        searchInput.value = cityName;
+        
+        hideSuggestions();
+        currentSuggestionIndex = -1;
+        
+        // Perform search with selected city
+        setTimeout(() => {
+            performSearch(cityName);
+            isSelectingSuggestion = false;
+        }, 100);
+    }
+    
+    // Hide suggestions dropdown
+    function hideSuggestions() {
+        const dropdown = document.getElementById('suggestionsDropdown');
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        suggestions = [];
+    }
+    
+    // Perform search (existing function)
     function performSearch(query) {
-        // Jika sudah ada pencarian yang berjalan, hentikan
         if (isSearching) return;
         
         isSearching = true;
         document.getElementById('loadingIndicator').style.display = 'block';
         
-        // Kirim request AJAX ke server
         fetch(`/UnifiedSearch/Search?SearchQuery=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=10`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -321,7 +601,7 @@
         });
     }
     
-    // Fungsi untuk load halaman berikutnya
+    // Load page (existing function)
     function loadPage(page) {
         currentPage = page;
         const query = document.getElementById('SearchQuery').value.trim();
@@ -331,16 +611,17 @@
         }
     }
     
-    // Fungsi untuk hide search results
+    // Hide search results
     function hideSearchResults() {
         document.getElementById('searchResultsPopup').style.display = 'none';
     }
     
-    // Fungsi untuk clear search
+    // Clear search (existing function)
     function clearSearch() {
         document.getElementById('SearchQuery').value = '';
+        hideSuggestions();
         hideSearchResults();
-        // Clear search results dari main display juga
         document.getElementById('searchResults').innerHTML = '';
+        currentSuggestionIndex = -1;
     }
 </script>

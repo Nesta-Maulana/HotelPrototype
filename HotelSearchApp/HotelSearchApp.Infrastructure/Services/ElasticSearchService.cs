@@ -2017,5 +2017,198 @@ namespace HotelSearchApp.Infrastructure.Services
 
             return searchResponse.Documents.ToList();
         }
+
+        public async Task<IEnumerable<CitySuggestionDto>> GetCitySuggestionsAsync(string query, int maxSuggestions = 5)
+        {
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            {
+                return new List<CitySuggestionDto>();
+            }
+
+            var normalizedQuery = query.ToLowerInvariant().Trim();
+
+            try
+            {
+                // First try exact prefix matches
+                var prefixMatches = await GetPrefixCityMatches(normalizedQuery, maxSuggestions);
+                if (prefixMatches.Any())
+                {
+                    return prefixMatches;
+                }
+
+                // If no prefix matches, try fuzzy matching
+                var fuzzyMatches = await GetFuzzyCityMatches(normalizedQuery, maxSuggestions);
+                return fuzzyMatches;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting city suggestions: {ex.Message}");
+                return new List<CitySuggestionDto>();
+            }
+        }
+
+        private async Task<List<CitySuggestionDto>> GetPrefixCityMatches(string query, int maxSuggestions)
+        {
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(HotelIndexName)
+                .Size(0)
+                .Query(q => q.Prefix(p => p.Field(f => f.CityName.Suffix("keyword")).Value(query)))
+                .Aggregations(aggs => aggs
+                    .Terms("cities", t => t
+                        .Field(f => f.CityName.Suffix("keyword"))
+                        .Size(maxSuggestions * 2)
+                    )
+                );
+
+            var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+            
+            if (!response.IsValid || !response.Aggregations.ContainsKey("cities"))
+            {
+                return new List<CitySuggestionDto>();
+            }
+
+            var citiesAgg = response.Aggregations.Terms("cities");
+            var results = new List<CitySuggestionDto>();
+
+            foreach (var bucket in citiesAgg.Buckets)
+            {
+                if (string.IsNullOrEmpty(bucket.Key) || 
+                    !bucket.Key.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                results.Add(new CitySuggestionDto
+                {
+                    CityName = bucket.Key,
+                    Country = "Indonesia", // Default for now
+                    HotelCount = (int)(bucket.DocCount ?? 0),
+                    Similarity = 1.0
+                });
+
+                if (results.Count >= maxSuggestions)
+                    break;
+            }
+
+            return results;
+        }
+
+        private async Task<List<CitySuggestionDto>> GetFuzzyCityMatches(string query, int maxSuggestions)
+        {
+            var searchDescriptor = new SearchDescriptor<Hotel>()
+                .Index(HotelIndexName)
+                .Size(0)
+                .Query(q => q.Match(m => m
+                    .Field(f => f.CityName)
+                    .Query(query)
+                    .Fuzziness(Fuzziness.Auto)
+                    .PrefixLength(1)
+                ))
+                .Aggregations(aggs => aggs
+                    .Terms("cities", t => t
+                        .Field(f => f.CityName.Suffix("keyword"))
+                        .Size(maxSuggestions * 3)
+                    )
+                );
+
+            var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
+            
+            if (!response.IsValid || !response.Aggregations.ContainsKey("cities"))
+            {
+                return new List<CitySuggestionDto>();
+            }
+
+            var citiesAgg = response.Aggregations.Terms("cities");
+            var suggestions = new List<CitySuggestionDto>();
+
+            foreach (var bucket in citiesAgg.Buckets)
+            {
+                if (string.IsNullOrEmpty(bucket.Key))
+                    continue;
+
+                var similarity = CalculateSimilarity(query, bucket.Key);
+                if (similarity <= 0.3)
+                    continue;
+
+                suggestions.Add(new CitySuggestionDto
+                {
+                    CityName = bucket.Key,
+                    Country = "Indonesia", // Default for now  
+                    HotelCount = (int)(bucket.DocCount ?? 0),
+                    Similarity = similarity
+                });
+            }
+
+            return suggestions
+                .OrderByDescending(x => x.Similarity)
+                .ThenByDescending(x => x.HotelCount)
+                .Take(maxSuggestions)
+                .ToList();
+        }
+
+        private double CalculateSimilarity(string source, string target)
+        {
+            if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target))
+                return 0;
+
+            source = source.ToLowerInvariant();
+            target = target.ToLowerInvariant();
+
+            // Exact match
+            if (source == target)
+                return 1.0;
+
+            // Prefix match
+            if (target.StartsWith(source))
+                return 0.9;
+
+            // Calculate Levenshtein distance
+            int distance = LevenshteinDistance(source, target);
+            int maxLength = Math.Max(source.Length, target.Length);
+            
+            if (maxLength == 0)
+                return 1.0;
+
+            double similarity = 1.0 - (double)distance / maxLength;
+            
+            // Boost similarity if target contains source as substring
+            if (target.Contains(source))
+                similarity = Math.Max(similarity, 0.8);
+
+            return similarity;
+        }
+
+        private int LevenshteinDistance(string source, string target)
+        {
+            if (string.IsNullOrEmpty(source))
+                return string.IsNullOrEmpty(target) ? 0 : target.Length;
+
+            if (string.IsNullOrEmpty(target))
+                return source.Length;
+
+            int sourceLength = source.Length;
+            int targetLength = target.Length;
+            int[,] matrix = new int[sourceLength + 1, targetLength + 1];
+
+            // Initialize the matrix
+            for (int i = 0; i <= sourceLength; i++)
+                matrix[i, 0] = i;
+
+            for (int j = 0; j <= targetLength; j++)
+                matrix[0, j] = j;
+
+            // Fill the matrix
+            for (int i = 1; i <= sourceLength; i++)
+            {
+                for (int j = 1; j <= targetLength; j++)
+                {
+                    int cost = source[i - 1] == target[j - 1] ? 0 : 1;
+                    matrix[i, j] = Math.Min(
+                        Math.Min(matrix[i - 1, j] + 1, matrix[i, j - 1] + 1),
+                        matrix[i - 1, j - 1] + cost
+                    );
+                }
+            }
+
+            return matrix[sourceLength, targetLength];
+        }
     }
 }

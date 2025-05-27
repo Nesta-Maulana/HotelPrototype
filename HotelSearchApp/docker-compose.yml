@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: hotelsearch-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - hotelsearch-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  data-importer:
+    build:
+      context: .
+      dockerfile: Dockerfile.importer
+    container_name: hotelsearch-data-importer
+    environment:
+      - Elasticsearch__Url=http://elasticsearch:9200
+      - Elasticsearch__Index=hotels
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - hotelsearch-network
+    volumes:
+      - import-status:/app
+    restart: "no"
+
+  hotelsearch-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hotelsearch-web
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Elasticsearch__Url=http://elasticsearch:9200
+      - Elasticsearch__Index=hotels
+    ports:
+      - "5220:80"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      data-importer:
+        condition: service_completed_successfully
+    networks:
+      - hotelsearch-network
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  import-status:
+    driver: local
+
+networks:
+  hotelsearch-network:
+    driver: bridge

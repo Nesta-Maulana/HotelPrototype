@@ -100,5 +100,35 @@ namespace HotelSearchApp.Web.Controllers
                 return View("Index", viewModel);
             }
         }
+        [HttpGet]
+        public async Task<JsonResult> GetCitySuggestions(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            {
+                return Json(new List<object>());
+            }
+
+            try
+            {
+                var suggestions = await _elasticSearchService.GetCitySuggestionsAsync(query, 5);
+                
+                // Convert to anonymous objects for JSON serialization
+                var result = suggestions.Select(s => new
+                {
+                    cityName = s.CityName,
+                    country = s.Country,
+                    hotelCount = s.HotelCount,
+                    similarity = s.Similarity
+                });
+                
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error getting city suggestions: {ex.Message}");
+                return Json(new List<object>());
+            }
+        }
     }
 }

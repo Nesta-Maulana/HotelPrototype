@@ -100,58 +100,138 @@ namespace HotelSearchApp.Web.Controllers
                 return View("Index", viewModel);
             }
         }
-        
+
         [HttpGet]
-        public async Task<JsonResult> GetCitySuggestions(string query)
+        public async Task<IActionResult> GetCitySuggestions(string query)
         {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
             {
+                var emptyViewModel = new UnifiedSearchViewModel
+                {
+                    SearchQuery = query ?? "",
+                    SearchResults = new ElasticSearchResponse<Hotel>
+                    {
+                        Items = new List<Hotel>(),
+                        TotalHits = 0,
+                        ElapsedTime = TimeSpan.Zero,
+                        PageNumber = 1,
+                        PageSize = 10,
+                    },
+                };
+
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return PartialView("_SearchResults", emptyViewModel);
+                }
                 return Json(new { suggestions = new List<object>(), hotels = new List<object>() });
             }
 
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
-                // Get city suggestions
+                // Perform full search like the Search method
+                var searchResult = await _elasticSearchService.UnifiedSearchAsync(query, 1, 10);
+
+                stopwatch.Stop();
+
+                var viewModel = new UnifiedSearchViewModel
+                {
+                    SearchQuery = query,
+                    SearchResults = searchResult,
+                    TotalElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                    SearchMethod = "Suggestions Search",
+                    SearchSuccessful = searchResult.TotalHits > 0,
+                    SearchTermsCount = query
+                        .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Length,
+                };
+
+                // Set special search method if detected
+                if (searchResult.IsCountrySearch)
+                {
+                    viewModel.SearchMethod = "Country Suggestions";
+                }
+                else if (searchResult.IsHotelCodeSearch)
+                {
+                    viewModel.SearchMethod = "Hotel Code Suggestions";
+                }
+
+                // Return partial view for AJAX requests
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return PartialView("_SearchResults", viewModel);
+                }
+
+                // Fallback to JSON for non-AJAX requests (backward compatibility)
                 var suggestions = await _elasticSearchService.GetCitySuggestionsAsync(query, 5);
-                
-                // Get hotels for the best matching city
                 var topHotels = new List<object>();
+
                 if (suggestions.Any())
                 {
                     var bestMatchCity = suggestions.First().CityName;
-                    var hotels = await _elasticSearchService.GetHotelsByCityAsync(bestMatchCity, 10);
-                    
-                    topHotels = hotels.Select(h => new
-                    {
-                        id = h.Id,
-                        hotelCode = h.HotelCode,
-                        hotelName = h.HotelName,
-                        cityName = h.CityName,
-                        address1 = h.Address1,
-                        address2 = h.Address2,
-                        country = h.Country
-                    }).ToList<object>();
+                    var hotels = await _elasticSearchService.GetHotelsByCityAsync(
+                        bestMatchCity,
+                        10
+                    );
+
+                    topHotels = hotels
+                        .Select(h => new
+                        {
+                            id = h.Id,
+                            hotelCode = h.HotelCode,
+                            hotelName = h.HotelName,
+                            cityName = h.CityName,
+                            address1 = h.Address1,
+                            address2 = h.Address2,
+                            country = h.Country,
+                        })
+                        .ToList<object>();
                 }
-                
-                // Convert suggestions to anonymous objects for JSON serialization
-                var suggestionsResult = suggestions.Select(s => new
-                {
-                    cityName = s.CityName,
-                    country = s.Country,
-                    hotelCount = s.HotelCount,
-                    similarity = s.Similarity
-                }).ToList();
-                
-                return Json(new { 
-                    suggestions = suggestionsResult,
-                    hotels = topHotels,
-                    searchQuery = query
-                });
+
+                var suggestionsResult = suggestions
+                    .Select(s => new
+                    {
+                        cityName = s.CityName,
+                        country = s.Country,
+                        hotelCount = s.HotelCount,
+                        similarity = s.Similarity,
+                    })
+                    .ToList();
+
+                return Json(
+                    new
+                    {
+                        suggestions = suggestionsResult,
+                        hotels = topHotels,
+                        searchQuery = query,
+                    }
+                );
             }
             catch (Exception ex)
             {
-                // Log the exception
-                Console.WriteLine($"Error getting city suggestions: {ex.Message}");
+                Console.WriteLine($"Error in GetCitySuggestions: {ex.Message}");
+
+                var errorViewModel = new UnifiedSearchViewModel
+                {
+                    SearchQuery = query,
+                    TotalElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                    ErrorMessage = "An error occurred while searching. Please try again.",
+                    SearchResults = new ElasticSearchResponse<Hotel>
+                    {
+                        Items = new List<Hotel>(),
+                        TotalHits = 0,
+                        ElapsedTime = stopwatch.Elapsed,
+                        PageNumber = 1,
+                        PageSize = 10,
+                    },
+                };
+
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return PartialView("_SearchResults", errorViewModel);
+                }
+
                 return Json(new { suggestions = new List<object>(), hotels = new List<object>() });
             }
         }

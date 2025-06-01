@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HotelSearchApp.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3b3543c5d80bdb02d328da1c0f0c38c1d68fdc86")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0fdc92e4633196a9b82f1f2c695113bf87f8fef2")]
 [assembly: System.Reflection.AssemblyProductAttribute("HotelSearchApp.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HotelSearchApp.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -919,11 +919,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
+      "projectUniqueName": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
       "projectName": "HotelSearchApp.Infrastructure",
-      "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
+      "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-      "outputPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\obj\\",
+      "outputPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -946,8 +946,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
-              "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj"
+            "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
+              "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj"
             }
           }
         }

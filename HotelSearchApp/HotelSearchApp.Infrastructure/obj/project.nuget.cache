@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "FhbdprW/G90=",
+  "dgSpecHash": "XWCnMw8lh7A=",
   "success": true,
-  "projectFilePath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
+  "projectFilePath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\user\\.nuget\\packages\\elasticsearch.net\\7.17.5\\elasticsearch.net.7.17.5.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.csharp\\4.6.0\\microsoft.csharp.4.6.0.nupkg.sha512",

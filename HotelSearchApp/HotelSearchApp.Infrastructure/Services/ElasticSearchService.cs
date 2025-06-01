@@ -828,25 +828,32 @@ namespace HotelSearchApp.Infrastructure.Services
             return result;
         }
 
+        // PERBAIKAN: DetectSearchIntent yang lebih cerdas
         private (SearchIntent intent, bool isExact) DetectSearchIntent(string normalizedQuery)
         {
-            // Calculate complexity metrics
             int wordCount = normalizedQuery
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Length;
             bool containsSpecificPhrase = ContainsSpecificPhrases(normalizedQuery);
             bool looksLikeHotelCode = IsLikelyHotelCode(normalizedQuery);
 
-            // Using heuristics to determine search intent
+            // Tambahkan deteksi untuk nama hotel spesifik
+            bool looksLikeSpecificHotel = IsLikelySpecificHotelName(normalizedQuery);
+
             if (looksLikeHotelCode)
             {
                 return (SearchIntent.HotelCode, true);
+            }
+            // PERBAIKAN: Prioritaskan specific hotel detection
+            else if (looksLikeSpecificHotel || (wordCount >= 2 && containsSpecificPhrase))
+            {
+                return (SearchIntent.SpecificHotel, true);
             }
             else if (wordCount >= 3 && containsSpecificPhrase)
             {
                 return (SearchIntent.SpecificHotel, true);
             }
-            else if (wordCount <= 2)
+            else if (wordCount <= 2 && !looksLikeSpecificHotel)
             {
                 return (SearchIntent.HotelBrand, false);
             }
@@ -858,6 +865,116 @@ namespace HotelSearchApp.Infrastructure.Services
             {
                 return (SearchIntent.General, false);
             }
+        }
+
+        // Method baru untuk mendeteksi nama hotel spesifik
+        private bool IsLikelySpecificHotelName(string query)
+        {
+            var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            // Hotel name indicators - kata-kata yang menunjukkan nama hotel spesifik
+            var hotelNameIndicators = new[]
+            {
+                "hotel",
+                "resort",
+                "residence",
+                "residences",
+                "palace",
+                "grand",
+                "royal",
+                "plaza",
+                "suites",
+                "inn",
+                "lodge",
+                "villa",
+                "manor",
+                "tower",
+                "towers",
+                "court",
+                "garden",
+                "gardens",
+                "spa",
+                "boutique",
+                "luxury",
+                "premium",
+                "executive",
+                "business",
+                "international",
+                "continental",
+                "imperial",
+                "heritage",
+                "landmark",
+                "signature",
+                "collection",
+                "by",
+                "lorin",
+                "marriott",
+                "hilton",
+                "hyatt",
+                "sheraton",
+                "westin",
+                "intercontinental",
+            };
+
+            // Location indicators yang menunjukkan ini mungkin nama spesifik + lokasi
+            var locationIndicators = new[]
+            {
+                "jakarta",
+                "bandung",
+                "surabaya",
+                "bali",
+                "yogyakarta",
+                "medan",
+                "semarang",
+                "makassar",
+                "palembang",
+                "batam",
+                "malang",
+                "solo",
+                "bogor",
+                "depok",
+                "tangerang",
+                "bekasi",
+                "city",
+                "centre",
+                "center",
+                "downtown",
+                "airport",
+                "beach",
+                "mountain",
+                "hill",
+                "lake",
+                "river",
+            };
+
+            // Jika query mengandung hotel name indicators
+            bool hasHotelIndicator = hotelNameIndicators.Any(indicator =>
+                query.Contains(indicator, StringComparison.OrdinalIgnoreCase)
+            );
+
+            // Jika ada 2+ kata dan salah satunya adalah hotel indicator
+            if (terms.Length >= 2 && hasHotelIndicator)
+            {
+                return true;
+            }
+
+            // Jika ada kombinasi nama + hotel indicator (misal: "Mangkuluhur Residences")
+            if (terms.Length == 2)
+            {
+                var firstWord = terms[0].ToLowerInvariant();
+                var secondWord = terms[1].ToLowerInvariant();
+
+                // Jika kata kedua adalah hotel indicator dan kata pertama bukan location
+                if (
+                    hotelNameIndicators.Contains(secondWord)
+                    && !locationIndicators.Contains(firstWord)
+                )
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool ContainsSpecificPhrases(string query)
@@ -992,49 +1109,75 @@ namespace HotelSearchApp.Infrastructure.Services
             };
         }
 
+        // PERBAIKAN: BuildSpecificHotelQuery untuk prioritas exact match
         private QueryContainer BuildSpecificHotelQuery(string query)
         {
             return new BoolQuery
             {
                 Should = new List<QueryContainer>
                 {
-                    // Exact match on hotel name (highest priority)
+                    // PRIORITAS TERTINGGI: Exact phrase match
+                    new MatchPhraseQuery
+                    {
+                        Field = "hotelname.keyword",
+                        Query = query,
+                        Boost = 100.0, // Boost sangat tinggi untuk exact match
+                    },
+                    // PRIORITAS KEDUA: Phrase match dengan analyzer standard
                     new MatchPhraseQuery
                     {
                         Field = "hotelname",
                         Query = query,
-                        Boost = 50.0,
+                        Boost = 80.0,
                     },
-                    // Match both hotel name and city
-                    new BoolQuery
-                    {
-                        Must = new List<QueryContainer>
+                    // PRIORITAS KETIGA: Multi-field exact term match
+                    (QueryContainer)
+                        new BoolQuery
                         {
-                            new MatchQuery
-                            {
-                                Field = "hotelname",
-                                Query = query,
-                                MinimumShouldMatch = "70%",
-                                Boost = 20.0,
-                            },
-                            new MatchQuery
-                            {
-                                Field = "cityname",
-                                Query = query,
-                                MinimumShouldMatch = "50%",
-                                Boost = 10.0,
-                            },
+                            Must = query
+                                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                .Select(term =>
+                                    (QueryContainer)
+                                        new BoolQuery
+                                        {
+                                            Should = new List<QueryContainer>
+                                            {
+                                                new TermQuery
+                                                {
+                                                    Field = "hotelname",
+                                                    Value = term,
+                                                    Boost = 3.0,
+                                                },
+                                                new MatchQuery
+                                                {
+                                                    Field = "hotelname",
+                                                    Query = term,
+                                                    Boost = 2.0,
+                                                },
+                                            },
+                                            MinimumShouldMatch = 1,
+                                        }
+                                )
+                                .ToList(),
+                            Boost = 60.0,
                         },
-                        Boost = 40.0,
-                    },
-                    // Fuzzy match for handling typographical errors
+                    // PRIORITAS KEEMPAT: Fuzzy match untuk typo tolerance
                     new MatchQuery
                     {
                         Field = "hotelname",
                         Query = query,
-                        Fuzziness = Fuzziness.Auto,
-                        PrefixLength = 2, // Preserve first two characters
-                        Boost = 25.0,
+                        Fuzziness = Fuzziness.EditDistance(1), // Perbaikan: gunakan EditDistance(1)
+                        PrefixLength = 2, // Preserve 2 karakter pertama
+                        MinimumShouldMatch = "90%", // Lebih strict
+                        Boost = 40.0,
+                    },
+                    // PRIORITAS TERENDAH: Fallback untuk partial match
+                    new MatchQuery
+                    {
+                        Field = "hotelname",
+                        Query = query,
+                        MinimumShouldMatch = "80%",
+                        Boost = 20.0,
                     },
                 },
                 MinimumShouldMatch = 1,
@@ -1235,34 +1378,108 @@ namespace HotelSearchApp.Infrastructure.Services
             return searchResponse.Documents;
         }
 
+        // PERBAIKAN: ProcessSpecificHotelResults
         private IEnumerable<Hotel> ProcessSpecificHotelResults(
             ISearchResponse<Hotel> searchResponse,
             string query
         )
         {
-            // For specific hotel searches, we want just the exact hotel if we're confident
-            if (searchResponse.Hits.Count > 0)
+            if (!searchResponse.IsValid || searchResponse.Documents.Count() == 0)
             {
-                // If we have a single result, or the top result has a significantly higher score
-                if (searchResponse.Hits.Count == 1 || IsHighConfidenceMatch(searchResponse.Hits))
-                {
-                    return searchResponse.Documents.Take(1);
-                }
+                return Enumerable.Empty<Hotel>();
+            }
 
-                // Try to find exact name match
-                var exactMatch = searchResponse.Documents.FirstOrDefault(h =>
+            var results = searchResponse.Documents.ToList();
+            var normalizedQuery = query.ToLowerInvariant().Trim();
+
+            // Cari exact match terlebih dahulu
+            var exactMatches = results
+                .Where(h =>
                     h.HotelName != null
-                    && NormalizeSearchQuery(h.HotelName)
-                        .Equals(query, StringComparison.OrdinalIgnoreCase)
-                );
+                    && h.HotelName.Equals(query, StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
 
-                if (exactMatch != null)
+            if (exactMatches.Any())
+            {
+                return exactMatches.Take(1); // Return hanya exact match
+            }
+
+            // Cari near-exact match (phrase match)
+            var phraseMatches = results
+                .Where(h =>
+                    h.HotelName != null
+                    && h.HotelName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
+
+            if (phraseMatches.Any())
+            {
+                // Urutkan berdasarkan similarity dan ambil yang paling mirip
+                var bestMatches = phraseMatches
+                    .OrderByDescending(h =>
+                        h.HotelName != null ? CalculateNameSimilarity(h.HotelName, query) : 0
+                    )
+                    .ThenByDescending(h =>
+                        searchResponse.Hits.First(hit => hit.Source.Id == h.Id).Score ?? 0
+                    )
+                    .ToList();
+
+                // Jika similarity > 0.8, kembalikan hanya top result
+                var topMatch = bestMatches.First();
+                var similarity =
+                    topMatch.HotelName != null
+                        ? CalculateNameSimilarity(topMatch.HotelName, query)
+                        : 0;
+
+                if (similarity > 0.8)
                 {
-                    return new List<Hotel> { exactMatch };
+                    return new List<Hotel> { topMatch };
                 }
             }
 
-            return searchResponse.Documents;
+            // Jika tidak ada exact/near-exact match, filter hasil berdasarkan relevance score
+            if (searchResponse.Hits.Count > 1)
+            {
+                var topScore = searchResponse.Hits.First().Score ?? 0;
+                var secondScore = searchResponse.Hits.Skip(1).First().Score ?? 0;
+
+                // Jika top score jauh lebih tinggi, kembalikan hanya top result
+                if (topScore > 0 && secondScore > 0 && (topScore / secondScore) > 2.0)
+                {
+                    return new List<Hotel> { results.First() };
+                }
+            }
+
+            // Fallback: kembalikan max 3 hasil terbaik
+            return results.Take(1);
+        }
+
+        // Method helper untuk menghitung similarity nama hotel
+        private double CalculateNameSimilarity(string? hotelName, string query)
+        {
+            if (string.IsNullOrEmpty(hotelName) || string.IsNullOrEmpty(query))
+                return 0;
+
+            var name = hotelName.ToLowerInvariant();
+            var q = query.ToLowerInvariant();
+
+            // Exact match
+            if (name == q)
+                return 1.0;
+
+            // Contains query
+            if (name.Contains(q))
+                return 0.9;
+
+            // Split into words and check overlap
+            var nameWords = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+            var queryWords = q.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+
+            var intersection = nameWords.Intersect(queryWords).Count();
+            var union = nameWords.Union(queryWords).Count();
+
+            return union > 0 ? (double)intersection / union : 0;
         }
 
         private IEnumerable<Hotel> ProcessHotelBrandResults(
@@ -2018,7 +2235,10 @@ namespace HotelSearchApp.Infrastructure.Services
             return searchResponse.Documents.ToList();
         }
 
-        public async Task<IEnumerable<CitySuggestionDto>> GetCitySuggestionsAsync(string query, int maxSuggestions = 5)
+        public async Task<IEnumerable<CitySuggestionDto>> GetCitySuggestionsAsync(
+            string query,
+            int maxSuggestions = 5
+        )
         {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
             {
@@ -2047,21 +2267,24 @@ namespace HotelSearchApp.Infrastructure.Services
             }
         }
 
-        private async Task<List<CitySuggestionDto>> GetPrefixCityMatches(string query, int maxSuggestions)
+        private async Task<List<CitySuggestionDto>> GetPrefixCityMatches(
+            string query,
+            int maxSuggestions
+        )
         {
             var searchDescriptor = new SearchDescriptor<Hotel>()
                 .Index(HotelIndexName)
                 .Size(0)
                 .Query(q => q.Prefix(p => p.Field(f => f.CityName.Suffix("keyword")).Value(query)))
-                .Aggregations(aggs => aggs
-                    .Terms("cities", t => t
-                        .Field(f => f.CityName.Suffix("keyword"))
-                        .Size(maxSuggestions * 2)
+                .Aggregations(aggs =>
+                    aggs.Terms(
+                        "cities",
+                        t => t.Field(f => f.CityName.Suffix("keyword")).Size(maxSuggestions * 2)
                     )
                 );
 
             var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
-            
+
             if (!response.IsValid || !response.Aggregations.ContainsKey("cities"))
             {
                 return new List<CitySuggestionDto>();
@@ -2072,17 +2295,21 @@ namespace HotelSearchApp.Infrastructure.Services
 
             foreach (var bucket in citiesAgg.Buckets)
             {
-                if (string.IsNullOrEmpty(bucket.Key) || 
-                    !bucket.Key.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                if (
+                    string.IsNullOrEmpty(bucket.Key)
+                    || !bucket.Key.StartsWith(query, StringComparison.OrdinalIgnoreCase)
+                )
                     continue;
 
-                results.Add(new CitySuggestionDto
-                {
-                    CityName = bucket.Key,
-                    Country = "Indonesia", // Default for now
-                    HotelCount = (int)(bucket.DocCount ?? 0),
-                    Similarity = 1.0
-                });
+                results.Add(
+                    new CitySuggestionDto
+                    {
+                        CityName = bucket.Key,
+                        Country = "Indonesia", // Default for now
+                        HotelCount = (int)(bucket.DocCount ?? 0),
+                        Similarity = 1.0,
+                    }
+                );
 
                 if (results.Count >= maxSuggestions)
                     break;
@@ -2091,26 +2318,31 @@ namespace HotelSearchApp.Infrastructure.Services
             return results;
         }
 
-        private async Task<List<CitySuggestionDto>> GetFuzzyCityMatches(string query, int maxSuggestions)
+        private async Task<List<CitySuggestionDto>> GetFuzzyCityMatches(
+            string query,
+            int maxSuggestions
+        )
         {
             var searchDescriptor = new SearchDescriptor<Hotel>()
                 .Index(HotelIndexName)
                 .Size(0)
-                .Query(q => q.Match(m => m
-                    .Field(f => f.CityName)
-                    .Query(query)
-                    .Fuzziness(Fuzziness.Auto)
-                    .PrefixLength(1)
-                ))
-                .Aggregations(aggs => aggs
-                    .Terms("cities", t => t
-                        .Field(f => f.CityName.Suffix("keyword"))
-                        .Size(maxSuggestions * 3)
+                .Query(q =>
+                    q.Match(m =>
+                        m.Field(f => f.CityName)
+                            .Query(query)
+                            .Fuzziness(Fuzziness.Auto)
+                            .PrefixLength(1)
+                    )
+                )
+                .Aggregations(aggs =>
+                    aggs.Terms(
+                        "cities",
+                        t => t.Field(f => f.CityName.Suffix("keyword")).Size(maxSuggestions * 3)
                     )
                 );
 
             var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
-            
+
             if (!response.IsValid || !response.Aggregations.ContainsKey("cities"))
             {
                 return new List<CitySuggestionDto>();
@@ -2128,13 +2360,15 @@ namespace HotelSearchApp.Infrastructure.Services
                 if (similarity <= 0.3)
                     continue;
 
-                suggestions.Add(new CitySuggestionDto
-                {
-                    CityName = bucket.Key,
-                    Country = "Indonesia", // Default for now  
-                    HotelCount = (int)(bucket.DocCount ?? 0),
-                    Similarity = similarity
-                });
+                suggestions.Add(
+                    new CitySuggestionDto
+                    {
+                        CityName = bucket.Key,
+                        Country = "Indonesia", // Default for now
+                        HotelCount = (int)(bucket.DocCount ?? 0),
+                        Similarity = similarity,
+                    }
+                );
             }
 
             return suggestions
@@ -2163,12 +2397,12 @@ namespace HotelSearchApp.Infrastructure.Services
             // Calculate Levenshtein distance
             int distance = LevenshteinDistance(source, target);
             int maxLength = Math.Max(source.Length, target.Length);
-            
+
             if (maxLength == 0)
                 return 1.0;
 
             double similarity = 1.0 - (double)distance / maxLength;
-            
+
             // Boost similarity if target contains source as substring
             if (target.Contains(source))
                 similarity = Math.Max(similarity, 0.8);
@@ -2210,7 +2444,11 @@ namespace HotelSearchApp.Infrastructure.Services
 
             return matrix[sourceLength, targetLength];
         }
-        public async Task<IEnumerable<Hotel>> GetHotelsByCityAsync(string cityName, int maxHotels = 10)
+
+        public async Task<IEnumerable<Hotel>> GetHotelsByCityAsync(
+            string cityName,
+            int maxHotels = 10
+        )
         {
             if (string.IsNullOrWhiteSpace(cityName))
             {
@@ -2222,27 +2460,33 @@ namespace HotelSearchApp.Infrastructure.Services
                 var searchDescriptor = new SearchDescriptor<Hotel>()
                     .Index(HotelIndexName)
                     .Size(maxHotels)
-                    .Query(q => q.Bool(b => b
-                        .Should(
-                            // Exact match on city name (highest priority)
-                            q.Term(t => t.Field(f => f.CityName.Suffix("keyword")).Value(cityName).Boost(10.0)),
-                            // Fuzzy match for typo tolerance
-                            q.Match(m => m
-                                .Field(f => f.CityName)
-                                .Query(cityName)
-                                .Fuzziness(Fuzziness.Auto)
-                                .Boost(5.0)
-                            )
+                    .Query(q =>
+                        q.Bool(b =>
+                            b.Should(
+                                    // Exact match on city name (highest priority)
+                                    q.Term(t =>
+                                        t.Field(f => f.CityName.Suffix("keyword"))
+                                            .Value(cityName)
+                                            .Boost(10.0)
+                                    ),
+                                    // Fuzzy match for typo tolerance
+                                    q.Match(m =>
+                                        m.Field(f => f.CityName)
+                                            .Query(cityName)
+                                            .Fuzziness(Fuzziness.Auto)
+                                            .Boost(5.0)
+                                    )
+                                )
+                                .MinimumShouldMatch(1)
                         )
-                        .MinimumShouldMatch(1)
-                    ))
-                    .Sort(s => s
-                        .Descending(SortSpecialField.Score)  // Sort by relevance score first
-                        .Ascending(f => f.HotelName.Suffix("keyword"))  // Then by hotel name alphabetically
+                    )
+                    .Sort(s =>
+                        s.Descending(SortSpecialField.Score) // Sort by relevance score first
+                            .Ascending(f => f.HotelName.Suffix("keyword")) // Then by hotel name alphabetically
                     );
 
                 var response = await _elasticClient.SearchAsync<Hotel>(searchDescriptor);
-                
+
                 if (!response.IsValid || !response.Documents.Any())
                 {
                     return new List<Hotel>();

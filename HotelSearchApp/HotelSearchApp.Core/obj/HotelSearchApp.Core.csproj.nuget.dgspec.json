@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {}
+    "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {}
   },
   "projects": {
-    "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
+    "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj",
+        "projectUniqueName": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj",
         "projectName": "HotelSearchApp.Core",
-        "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj",
+        "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj",
         "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\obj\\",
+        "outputPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

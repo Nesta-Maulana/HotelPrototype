@@ -939,11 +939,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Web\\HotelSearchApp.Web.csproj",
+      "projectUniqueName": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Web\\HotelSearchApp.Web.csproj",
       "projectName": "HotelSearchApp.Web",
-      "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Web\\HotelSearchApp.Web.csproj",
+      "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Web\\HotelSearchApp.Web.csproj",
       "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-      "outputPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Web\\obj\\",
+      "outputPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Web\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -966,11 +966,11 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
-              "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj"
+            "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj": {
+              "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Core\\HotelSearchApp.Core.csproj"
             },
-            "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj": {
-              "projectPath": "D:\\00. Works\\elasticsearch\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj"
+            "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj": {
+              "projectPath": "D:\\00. Works\\HotelPrototype\\HotelSearchApp\\HotelSearchApp.Infrastructure\\HotelSearchApp.Infrastructure.csproj"
             }
           }
         }
